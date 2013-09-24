@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+
+<html>
+  <head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name="Author" content="Georges-Edouard Berenger">
+    <title>stampTV's Plugins Notice</title>
+  </head>
+
+  <body bgcolor="#FFFFFF">
+    <font FACE="Humnst777 BT, Arial, Helvetica">
+    <h1><font color="#1822CD"><font size="+4">stampTV's Plugins Notice</font></font></h1>
+    &copy;2001, <a href="mailto:berenger@francenet.fr">Georges-Edouard Berenger</a>, berenger@francenet.fr <br>
+    Hamburg, July 3rd, 2001.
+    
+    <font color="#ED181E"><h2>WARNING!</h2>
+	<h3>The plugin APIs are in the works! They will certainly change in the next release!!!
+	<br>This release is done to get feedback and hopefully get plugin developers interested.
+	Feedback is more than welcomed.
+	</h3></font>
+    
+    <h3><font color="#1822CD">What are stampTV Plugins?</font></h3>
+     stampTV can now do more than displaying a TV image, it can apply some effects to the image in real time.
+     <br>To avoid being dependent on a particular version of stampTV, those effects are implemented into plugins that
+     you will be able to use in any recent enough version of stampTV. Developers can now develop effects on the one side,
+     and users can benifit from all of them at the same time though developers never worked together and possibly kept the
+     source code for their effect private.
+     
+     <p>Plugins support has been implemented in a way which should allow developers to implement support for stampTV
+     plugins into their own application fairly easily. They can use stampTV as a reference implementation, and separation
+     between general plugins functionnalities &amp; stampTV's specific implementation has been kept as clean as possible.
+
+	<p>Developers should also read the 
+     <a href="Plugins%20Development.html">Developers' documentation</a>.
+
+    <h3><font color="#1822CD">Features</font></h3>
+	
+	<ul>
+		<li>Support for an unlimited number of plugins, though of course, if your plugins are too CPU intensive, then you will drop
+		frames.</li>
+		<li>Plugins can tell what color mode they support, possibly making conversions.</li>
+		<li>Plugins can tell if and how they support to write in an overlay (for performance issues).</li>
+		<li>One single plugin binary may contain many different effects. This allows easy support for a plugin which would interface
+		other plugins standards.</li>
+		<li>Each effect can be configured individually with its own private user interface.</li>
+		<li>Plugins can apply their effect on the bitmap itself, which can save a lot of memory and CPU
+		time if the effect is done only on a limited part of the image.</li>
+		<li>Plugins can use BView drawing functionnalities, (as long as the color mode is supported for that!).</li>
+		<li>Optimisation is done to use as few bitmaps as possible.</li>
+		<li>An overlay will be used if your video card supports a mode which the last plugins allows for overlays. This makes that an
+		overlay will be used if possible, but only if the plugin specifically specifies that it allows that feature. (Writting into
+		an overlay requires that the code is written properly, or performance will dramatically suffer.)
+		
+	</ul>
+
+    <h3><font color="#1822CD">Available Plugins</font></h3>
+
+	It should be very clear that the current plugins have been designed mainly for testing &amp; development purposes.
+	The author is not a graphist and hopefully other developers will contribute with code and/or plugins!
+	
+	<ul>
+		<li><b><font color="#207020">Drawer</font></b>
+			<p>Very simple plugin which uses BView drawing APIs to draw in the bitmap. It simply draws a simple text over the bitmap.
+			This plugin demonstrate also how to make a configuration window for plugins.
+			<p></li>
+		<li><b><font color="#207020">Horizontal Flip</font></b>
+			<p>Reverses the image as a mirror would do.
+			<p></li>
+		<li><b><font color="#207020">Pass Filter</font></b>
+			<p>Does some kind of difference between adjacent pixels. (Play with the source code!)
+			<p></li>
+		<li><b><font color="#207020">Overlayer</font></b>
+			<p>"Invisible" effect which should allow the output to be brought on screen via an overlay instead of via a blit.
+			In other words, instead of doing a DrawBitmap, the bitmap's content will be copied in the buffer of an overlay bitmap
+			causing the image to be displayed on the screen directly.
+			<p></li>
+		<li><b><font color="#207020">Deinterlacer</font></b>
+			<p>De-interlaces the image to remove those ugly horizontal line effects which are visible when the image changes a lot.
+			The algorithm is very basic but fast (line duplication), and should be replaced with something better. Volunteers are
+			welcomed!
+			Only usefull for higher resolutions.
+			<p></li>
+		<li><b><font color="#207020">Mosaic</font></b>
+			<p>This plugins creates a mosaic of images coming from the different preset scaned in order.
+			<p></li>
+
+	</ul>
+
+
+    <h3><font color="#1822CD">Known bugs &amp; problems</font></h3>
+
+    <ul>
+      
+      <li>Plugins properties must be very well set, or you will see unexpected behaviors, especially with the overlay &amp; 
+      process in place properties.</li>
+      
+      <li>Frame grabbing doesn't is done before effect processing.</li>
+      
+    </ul>
+
+    <h3><font color="#1822CD">Left to do</font></h3>
+	This is a work in progress. Here is what could/should be added:
+
+    <ul>
+		<li>More flexible Activation/deactivation/ordering of plugins,</li>
+		<li>Events: let plugin engines know that the channel what changed, a preset renamed, etc.</li>
+		<li>Add hooks so that plugins operating on overlays can also operate on the overlay mask itself to
+		incrust effects over the overlay itself.</li>
+		<li>Support for more host functionnalities, such as control over audio level and/or image quality.</li>
+      <li>Implement as many useful effects as possible!</li>
+    </ul>
+
+
+<h3><font color="#1822CD">StampTV's Video Plugin License</font></h3>
+
+&copy; 2001, Georges-Edouard Berenger, All Rights Reserved.
+
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+<ol>
+<li>Redistributions of source code must retain the above copyright
+   notice, this list of conditions, and the following disclaimer.
+
+<li>Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions, and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+<li>The name of the author may not be used to endorse or promote products
+   derived from this software without specific prior written permission.
+</ol>
+
+<b><font color="#ED181E">THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF TITLE, NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
+
+    <p>I will be glad to hear about your bug reports, problems, comments, flames, suggestions...<br>
+     You can mail me directly : <a href="mailto:berenger@francenet.fr">Georges-Edouard Berenger</a>.</p>
+     
+     <p>stampTV is provided with source code for anyone to play with. If you want to contribute
+     with any improvement or bug fix, please let me know!
+     I will see if it makes sence for the official distribution.
+     <br>Before you do any major work, why don't you drop me a line to be sure efforts are not duplicate?
+     That will prevent frustration for everyone!
+
+
+    <h3><font color="#1822CD">History</font></h3>
+
+     <h4>v1.0b5 (July 3rd, 2001)</h4>
+
+    <ul>
+		<li>Changes in implementation of plugin APIs.</li>
+		<li>New Mosaic plugin.</li>
+		<li>Wrote the stampTV Video Plugin License.</li>
+		<li>Plugin configuration windows improvements:
+		<ul>
+			<li>When a plugin is first used, if it has a configuration window, then it will be opened,</li>
+			<li>When stampTV starts, the configuration windows are re-opened if they used to be that way,</li>
+			<li>When a configuration window is first created, it is positioned as well as possible,</li>
+			<li>Uses a floating window which accepts first clicks, rather than a regular window.</li>
+		</ul>
+    </ul>
+
+    <h4>v1.0b4 (June 2001)</h4>
+
+    <ul>
+      <li>New changes in the version checking. You'll have to update your code (a cut and paste).</li>
+      <li>Improved the developer's documentation.</li>
+      <li>Added Mosaic plugin.</li>
+    </ul>
+
+    <h4>v1.0b3 (March 28th 2001)</h4>
+
+    <ul>
+      <li>Checks if several plugins have the same ID, and ignores the oldest version.</li>
+      <li>More APIs improvements.</li>
+      <li>Fixed plug settings storage & retrieval (broken in 1.0b2).</li>
+      <li>New deinterlacing plugin and other plugins improvements.</li>
+      <li>Important improvements in how bitmaps are choosen.</li>
+    </ul>
+
+    <h4>v1.0b2 (March 26th 2001)</h4>
+
+    <ul>
+      <li>Fixed race condition during set-up.</li>
+      <li>Improved APIs: added methods, modified others, renamed a few things, etc.</li>
+      <li>Wrote the developer's documentation &amp; improved the comments in the header files.</li>
+    </ul>
+
+    <h4>v1.0b1 (March 20th 2001)</h4>
+
+    <ul>
+      <li>Original release.</li>
+    </ul>
+  </font>
+  </body>
+</html>
+

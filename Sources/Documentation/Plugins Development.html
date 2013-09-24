@@ -1,0 +1,223 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+
+<html>
+  <head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name="Author" content="Georges-Edouard Berenger">
+    <title>Plugins Development Documentation</title>
+  </head>
+
+  <body bgcolor="#FFFFFF">
+    <font FACE="Humnst777 BT, Arial, Helvetica">
+    <h1><font color="#1822CD"><font size="+4">Plugins Development Documentation</font></font></h1>
+    &copy;2001, <a href="mailto:berenger@francenet.fr">Georges-Edouard Berenger</a>, berenger@francenet.fr <br>
+    Hamburg, July 3rd, 2001.
+    
+    <font color="#ED181E"><h2>WARNING!</h2>
+	<h3>The plugin APIs are in the works! They will certainly change in the next release!!!
+	<br>Attempts to freeze those APIs will only come later.
+	<br>This release is done to get feedback and hopefully get plugin developers interested.
+	<br>Feedback is more than welcomed!
+	</h3></font>
+    
+    <h3><font color="#1822CD">What is this document?</font></h3>
+	The Plugins API have been developed with two concurrent goals in mind:
+	<ul>
+		<li>Allow developers to write video effects for stampTV,</li>
+		<li>Allow host applications developers to add video plugins support to their own application.</li>
+		<li>Keep things as clear as possible for both types of developers: the cut between the different parts should be very clear.
+		Many comments have been added in the headers, and this documentation should answer the remaining questions.
+		For best results, you should use both the comments in the headers and this documentation.</li>
+	</ul>
+
+    <h3><font color="#1822CD">Organisation</font></h3>
+	
+	Four classes are defined and documented separately:
+	<ul>
+		<li><b><font color="#207020">VideoPluginType</font></b>
+		(defined &amp; documented in <a href="../VideoPlugin.h">VideoPlugin.h</a>)<br>
+		Defines a type of plugin. This objects allows an host to know what plugins are available, what their names are,
+		who wrote each of them, what their abilities are and allows to instanciate a VideoPluginEngine plugin object for each
+		type of plugin.
+		<br>This object is created by the plugin's GetVideoPlugins function.
+		There is one object of this type per type of plugins, but possibly several per plugin binary: the GetVideoPlugins simply
+		needs to put more than one VideoPluginType object in the BList it is given.
+		<br>Plugin developers must derive this class an implement a number of methods, but this is not a hard task.
+		<br>Host developers don't make objects of this class, but use them, mostly with the help of the PluginsHandler class.
+
+		<li><b><font color="#207020">VideoPluginEngine</font></b>
+		(defined &amp; documented in <a href="../VideoPlugin.h">VideoPlugin.h</a>)<br>
+		This is the class which does the video processing itself, where most of plugin developer's work is done.
+		<br>This object is instanciated by it's parent VideoPluginType object, as many times as necessary (the user may wish to use more
+		than once the same effect).
+		<br>Host developers don't make objects of this class, but use them, mostly with the help of the PluginsHandler class.</li>		
+
+		<li><b><font color="#207020">VideoPluginsHost</font></b>
+		(defined &amp; documented in <a href="../VideoPlugin.h">VideoPlugin.h</a>)<br>
+		This class allows plugins themselves to learn about the host application and use its services.
+		There is only one instance of this object at run time. It is created and implemented by the host application.
+		<br>The VideoPluginsHost class defines the interface that plugins may use to make requests to their host at run time.
+		<br>Plugins developers don't make objects of this class, but use the one that is given to them.
+		<br>Host developers shouldn't derive objects of this type directly: they should use the PluginsHandler class which derives from it.
+		Host developers who will prefer not to use the PluginsHandler class will make it harder for them to adapt to the next versions of the video plugins.
+		They will most probably end up reproducing most of the functionnalities provided by this class. If you were to modify this file, you
+		should get in touch with me to tell me why: you probably ran into a bug or need some functionnality which might make sense for
+		everyone!
+		</li>
+
+		<li><b><font color="#207020">PluginsHandler</font></b>
+		(derived from VideoPluginsHost, defined &amp; documented in <a href="../PluginsHandler.h">PluginsHandler.h</a>)<br>
+		This class provides host developers with important services to use &amp; organise VideoPluginType and VideoPluginEngine objects,
+		as well as store &amp; restore plugins configurations and settings.
+		<br>Plugins developers won't touch this class and won't even include the header file, though this class is the one which
+		will almost exclusively make use of the VideoPluginType and VideoPluginEngine objects they create.
+		<br>Host developers must derive an object of this type and implement several methods. This is were most the host's work is done.
+		<br>Note that host developers shouldn't override the methods that PluginsHandler define, but rather define the
+		VideoPluginsHost method which PluginsHandler left to implement.</li>
+	</ul>
+	
+	There is one more class which host developers will want to know about:
+	<ul>
+		<li><b><font color="#207020">stampPluginsHandler</font></b>
+		(derived from PluginsHandler and BHandler, defined &amp; documented in <a href="../stampPluginsHandler.h">stampPluginsHandler.h</a>)<br>
+		This is stampTV's derived version of the PluginsHandler class. It is <i>very</i> dependent on stampTV, but nevertheless
+		provides developers with a sample code which demonstrates how to implement a PluginsHandler object for their host.</li>
+	</ul>
+	Remains the simple function:<p>
+	<center>
+	extern "C" status_t _EXPORT GetVideoPlugins(TList<VideoPluginType> & plugin_list, VideoPluginsHost * host, image_id id);
+	</center>
+	
+	<p>It is the entry point the host application will be looking for when it tries to load a plugin.
+	This function should first make sure that the host application is recent enough with this code:
+
+<pre>status_t GetVideoPlugins(TList<VideoPluginType> &amp; plugin_list, VideoPluginsHost * host, image_id id)
+{
+	status_t compatible = host->APIVersionCompatible();
+	if (compatible != B_OK)
+		return compatible;
+
+	// The version is compatible, now instanciate the VideoPluginType object:
+	plugin_list.AddItem(new MyPluginType(host, id));
+	return B_OK;
+}</pre>
+
+...where MyPluginType is the type of plugin you define. You may very well add several different types of plugins as done in this example:
+<pre>	plugin_list.AddItem(new SharpenPluginType(host, id));
+	plugin_list.AddItem(new BlurPluginType(host, id));
+</pre>
+Note that the first lines never change in your code, and if ever you update the shared plugins files, then you will automatically update
+the test.<p>
+
+    <h3><font color="#1822CD">More about plugin properties</font></h3>
+	The biggest difficulty about those APIs is to define the abilities of your plugins properly. There are non-obvious design choices
+	which are discussed here.
+	<p>Each VideoPluginType class (instanciated only once) defines what are called vertices, which can each be seen as a path from one bitmap
+	format to an other one, with respect to certain properties. Each VideoPluginType must define one or more vertices, as necessary, but
+	those vertices <b>must remains absolutely constant during the entire life of the plugin</b>.
+	It is allowed that this list changes each time the VideoPluginType object is created, for instance to match the abilities of the video
+	card in use, as demonstrated by the "Overlayer" sample plugin.
+	<p>In other words, GetVerticesProperties must always return the same values. The structures which describes the vertices may not change or
+	disappear during the live of the VideoPluginType object.
+
+	<p>The properties of a vertice are defined as follows:
+<pre>typedef struct {
+	color_space	in_cspace;
+	color_space	out_cspace;
+	float		quality;
+	uint32		flags;
+	int32		future[4];
+} vertice_properties;</pre>
+
+in_cspace is the color space of the bitmap to be filtered. There is no restriction on this format as long as you know how to handle it.
+out_cspace is the color space of the result bitmap. There is no restriction on this format as long as you know how to handle it as well! It may be different
+than the format of the bitmap fitered. Therefore, you can very well make a converter plugin which will convert B_RGB32 bitmaps into B_RGB16 ones,
+and vice versa.
+<p>You may also choose to accept any color space for a vertice using ANY_COLOR_SPACE, with the following restrictions:
+<table width="80%"><tr><td align=center>
+<b>If you wish to use ANY_COLOR_SPACE,<br>then you MUST use it for both in_cspace &amp; out_cspace.
+<p>in_cspace and out_cspace will ALWAYS be equal.</b>
+</td></tr></table>
+<p>In other words, you can not use ANY_COLOR_SPACE to describe a filter which would make any kind of format conversion.
+If you wish to make such a format converter, then you must enumerate each supported format conversion, one after the other.
+<p>The reason behind this limitation is that it would increase greatly the complexity of the path finding algorithm and the handling of intermediate
+bitmaps. A great deal of the complexity comes from other features such as overlay support and support for bitmaps to which you may attach views.
+
+<p>For each vertice, you must set at least one of the four flags VAPI_PROCESS_TO_DISTINCT, VAPI_PROCESS_TO_OVERLAY, VAPI_PROCESS_IN_PLACE,
+VAPI_PROCESS_OVERLAY_IN_PLACE for each vertice, but you may define more than one. Those flags describes if your plugin can write in an overlay or not,
+and if your plugin may accept that the output bitmap is the same as the input bitmap. Note that the different vertices of a plugin may each set those flags
+as they wish, regardless of the other vertices.
+<p>Precisely:
+<ul>
+<li><b><font color="#207020">VAPI_PROCESS_TO_DISTINCT</font></b>:
+<br>The plugin takes two different bitmaps, and the output bitmap is not an overlay.
+<br>Typical value for a plugin which doesn't care about (or knows) how to write in an overlay to avoid severe performance loss.</li>
+<li><b><font color="#207020">VAPI_PROCESS_IN_PLACE</font></b>:
+<br>The plugin modifies the given bitmap, and this bitmap is not an overlay.
+<br>Typical value for a plugin which will draw in a bitmap (Warning: you'll need to set the VAPI_BVIEW_DRAWING flag as well!)</li>
+<li><b><font color="#207020">VAPI_PROCESS_TO_OVERLAY</font></b>:
+<br>The plugin takes two different bitmaps, and the output bitmap is an overlay.
+<br>Set this flag if your plugin knows how to write efficiently in an overlay bitmap. In most cases, you will want to set
+VAPI_PROCESS_TO_DISTINCT as well so that your plugin will work also when no overlay is available.
+<br>The plugin "Overlayer" is a exeption to this last rule, because if writing in an overlay is not possible, then it will prefer to avoid
+doing anything at all! This is not a typical plugin.</li>
+<li><b><font color="#207020">VAPI_PROCESS_OVERLAY_IN_PLACE</font></b>:
+<br>The plugin works on a single bitmap which is an overlay.
+<br>Use this flag in special cases such as "Overlayer" which will be happy to do nothing if the plugin before it can already write
+into the overlay.</li>
+</ul>
+<p>When ApplyEffect(BBitmap * frame_in, BBitmap * frame_out, int64 frame_count, bool skipped_frames) is called, it receives a pointer to the incoming
+and to the outgoing bitmaps.
+<ul>
+<li>If the flags VAPI_PROCESS_TO_DISTINCT and/or VAPI_PROCESS_TO_OVERLAY are set, then frame_in &amp; frame_out may be different bitmaps.
+<li>If the flags VAPI_PROCESS_IN_PLACE and/or VAPI_PROCESS_OVERLAY_IN_PLACE are set, then frame_in &amp; frame_out may be equal.
+<li>If both VAPI_PROCESS_TO_DISTINCT and VAPI_PROCESS_TO_OVERLAY are cleared, then frame_in &amp; frame_out will always be equal.
+<li>If both VAPI_PROCESS_IN_PLACE and VAPI_PROCESS_OVERLAY_IN_PLACE are cleared, then frame_in &amp; frame_out will always point to distinct bitmaps.
+</ul>
+<p>The bitmaps on which processing is done are handled entirely by the PluginsHandler class. It is the responsability of this class to always provide
+bitmap(s) which respect the properties of the vertice used. Here is how the effective mode is choosen:
+<p>If the plugin needs to use BView methods to draw in the bitmap (VAPI_BVIEW_DRAWING), then it will receive a bitmap with a view attached. Otherwise...
+<br>If the plugin accepts to process overlays in place (VAPI_PROCESS_OVERLAY_IN_PLACE),
+and the previous plugin (if any) accepts to write in an overlay, and if all the plugins after this
+plugin accept to work on an overlay in place, then the plugin will receive an overlay, and the output bitmap will also be that overlay. Otherwise...
+<br>If the plugin accepts to write in an overlay (VAPI_PROCESS_TO_OVERLAY), and if the plugins after it can work on the overlay in place,
+then it will get a regular bitmap as input, and will be given an overlay as output. Of course, the video card has to support overlays! Otherwise...
+<br>If the plugin accepts to modify manualy a single bitmap (VAPI_PROCESS_IN_PLACE), then it will get a single bitmap for input and output. Otherwise...
+<br>If the plugin accepts to work on different "normal" bitmaps (VAPI_PROCESS_TO_DISTINCT), then it will get two distinct bitmaps.
+<p>If none of the situations above arise, that means that the path selected wasn't valid. This obviously shouldn't ever happen!
+<br>This might happen nevertheless either because a plugin has inconsistent flags,
+or because the algorithm breaks at some level... Use debug outputs to find out what is going on! Very carefull choice of the flags is essential.
+The example plugins show how to use those flags properly in different situations.
+<p>You can get the system to break if for instance your plugin requires to write and/or process an overlay: if no overlay is available, then
+the system won't be able to find any solution! Therefore, plugins should always support either VAPI_PROCESS_TO_DISTINCT or VAPI_PROCESS_IN_PLACE.
+
+<p>As a general rule, you will probably never need to use VAPI_PROCESS_OVERLAY_IN_PLACE. Modifying an overlay is not a good idea because you will
+create ugly visible flicker effects. Remember that an overlay is essentialy a way to clip a section of video memory over a part of your screen where
+a specific color is used. Users will be able to see the modifications you are doing to this memory in real time.
+
+<p>Also, your plugin may want to use the BView APIs to draw. For that, use the VAPI_BVIEW_DRAWING flag which will automatically set the VAPI_PROCESS_IN_PLACE
+flag. BView method allow you only to work in the given bitmap, therefore you can't use the VAPI_PROCESS_TO_DISTINCT or
+VAPI_PROCESS_TO_OVERLAY. You should also not use the VAPI_PROCESS_OVERLAY_IN_PLACE together with VAPI_BVIEW_DRAWING,
+for it is not supported at least by some video cards.
+
+    <h3><font color="#1822CD">Getting ready for work</font></h3>
+
+	Plugin developers will need to get the latest version of their host application with the corresponding files:
+	<ul>	<li>VideoPlugin.h</li>
+		<li>VideoPlugin.cpp</li>
+		<li>TemplateList.h</li>
+	</ul>
+	They will link their plugins against the host application and the necessary system librairies (libbe.so, etc.).
+	<p>Host application developers will need to get the latest version of the following files:
+	<ul>	<li>VideoPlugin.h</li>
+		<li>VideoPlugin.cpp</li>
+		<li>TemplateList.h</li>
+		<li>PluginsHandler.h</li>
+		<li>PluginsHandler.cpp</li>
+	</ul>
+	The latest version of those files are available in the <a href="http://www.bebits.com/app/907">stampTV</a> source code package available on
+	<a href="http://www.bebits.com">BeBits</a>.<p>
+
+  </body>
+</html>
+

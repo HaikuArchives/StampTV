@@ -1,0 +1,31 @@
+// This is a configuration file for BeInControl http://www.bebits.com/app/970
+// Please see BeInControl for more information about it!
+
+// Global settings
+MessageReceiver= "application/x-vnd.Me.stampTV"
+Specifiers= { "View" }
+
+// The Functionalityic tab
+Tab TV Control {
+ + Channel=		SendMessage 'bicc' Specifier {"View",0} {"Window",0} 
+ - Channel=		SendMessage 'bicd' Specifier {"View",0} {"Window",0}
+
+ + Preset=		SendMessage 'bice' Specifier {"View",0} {"Window",0} 
+ - Preset=		SendMessage 'bicf' Specifier {"View",0} {"Window",0} 
+ 
+ Last Channel=	SendMessage 'bici' Specifier {"View",0} {"Window",0} 
+
+ + Volume=		Repeat SendMessage 'bica' Specifier {"View",0} {"Window",0} 
+ - Volume=		Repeat SendMessage 'bicb' Specifier {"View",0} {"Window",0} 
+
+ Mute=			SendMessage 'bich' Specifier {"View",0} {"Window",0} 
+ 
+ Fullscreen=	SendMessage 'bicg' Specifier {"View",0} {"Window",0} 
+ 
+}
+
+// The Application tab 
+Tab Application {
+ Start stampTV=		Launch
+ Exit stampTV=		SendMessage  '_QRQ' Specifier {"Window",0} 
+}
