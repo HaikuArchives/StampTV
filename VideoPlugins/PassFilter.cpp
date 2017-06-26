@@ -56,11 +56,6 @@ const char* PassFilterPluginType::Author()
 	return "Geb";
 }
 
-const char* PassFilterPluginType::AboutString()
-{
-	return "Pass Filter by Geb";
-}
-
 static const vertice_properties support[] =
 {
 //	{	B_RGB32,

@@ -25,7 +25,6 @@ class MosaicPluginType : public VideoPluginType
 		virtual uint32		Version();
 		virtual const char*	Name();
 		virtual const char*	Author();
-		virtual const char*	AboutString();
 		virtual int32		GetVerticesProperties(const vertice_properties ** ap);
 		virtual VideoPluginEngine * InstanciateVideoPluginEngine();
 	private:
@@ -49,6 +48,7 @@ class MosaicEngine : public VideoPluginEngine
 		virtual status_t	ApplyEffect(BBitmap * frame_in, BBitmap * frame_out, int64 frame_count, bool skipped_frames);
 
 	private:
+		void				UpdateMute();
 		friend class ConfigView;
 		BPath				mDefaultsPath;
 		BMessage			mDefaults;

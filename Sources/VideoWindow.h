@@ -34,21 +34,25 @@ public:
 	virtual void		Zoom(BPoint rec_position, float rec_width, float rec_height);
 	virtual	void		WindowActivated(bool state);
 	virtual void		WorkspaceActivated(int32 workspace, bool active);
+	virtual void		WorkspacesChanged(uint32 old_ws, uint32 new_ws);
 	virtual void		ScreenChanged(BRect screen_size, color_space depth);
 	
 	void				SwitchFullScreen(bool NewFullScreenSetting = false);
 	bool				IsFullScreen() const { return fFullScreen; }
 	void				CheckWindowPosition();
 	void				SetMaxSizes(int maxX, int maxY);
+	BRect				ScreenSize() { return fScreenSize; }
 
 	stampView *			VideoView() const { return fVideoView; }
 
 private:
 	stampView *			fVideoView;
 	display_mode		fSaveMode;
-	int32				fFullScreenWorkspace;
-	int					fSaveX, fSaveY, fSaveWidth, fSaveHeight;
+	int32				fSingleWorkspace;
+	int					fSaveX, fSaveY, fSaveWinWidth, fSaveWinHeight, fSaveVideoWidth, fSaveVideoHeight;
 	bool				fFullScreen;
+	color_space			fColorSpace;
+	BRect				fScreenSize, fSaveScreenSize;
 };
 
 

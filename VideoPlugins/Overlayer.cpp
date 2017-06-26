@@ -56,11 +56,6 @@ const char* OverlayerPluginType::Author()
 	return "Geb";
 }
 
-const char* OverlayerPluginType::AboutString()
-{
-	return "Overlayer by Geb";
-}
-
 static const vertice_properties support[] =
 {
 	{	ANY_COLOR_SPACE,

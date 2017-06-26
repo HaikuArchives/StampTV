@@ -16,27 +16,21 @@
 #include <MediaRoster.h>
 #include <ParameterWeb.h>
 #include <TimeSource.h>
+#include <stdio.h>
 
 // Should we be R5.0.3 compatible?
 #define R5_COMPATIBLE 1
 
-#if R5_COMPATIBLE
-const char * kChannelParameter = "Channel:";
-const char * kFormatParameter = "Video Format:";
-const char * kResolutionParameter = "Default Image Size:";
-#else
-const char * kChannelParameter = B_TUNER_CHANNEL;
-const char * kFormatParameter = B_VIDEO_FORMAT;
-const char * kResolutionParameter = B_RESOLUTION;
-#endif
+const char * kBrightnessParameterKind = "BRIGHTNESS";
+const char * kContrastParameterKind = "CONTRAST";
+const char * kSaturationParameterKind = "SATURATION";
 
-const char * kBrightnessParameter = "BRIGHTNESS";
-const char * kContrastParameter = "CONTRAST";
-const char * kSaturationParameter = "SATURATION";
+#define SET_WHEN BTimeSource::RealTime() - 10 * 1000000
 
 ParameterWebCache::ParameterWebCache(BParameterWeb * web):
-	fCachedParameterWeb(web), fCachedChannelParameter(NULL), fCachedFormatParameter(NULL)
+	fCachedParameterWeb(web)
 {
+	memset(fCachedParameters, 0, sizeof(fCachedParameters));
 }
 
 ParameterWebCache::~ParameterWebCache()
@@ -54,8 +48,7 @@ void ParameterWebCache::Release()
 {
 	delete fCachedParameterWeb;
 	fCachedParameterWeb = NULL;
-	fCachedChannelParameter = NULL;
-	fCachedFormatParameter = NULL;
+	memset(fCachedParameters, 0, sizeof(fCachedParameters));
 }
 
 BParameterWeb * ParameterWebCache::NewVideoParameterWeb(media_node & node, BMediaRoster * roster)
@@ -69,16 +62,15 @@ BParameterWeb * ParameterWebCache::NewVideoParameterWeb(media_node & node, BMedi
 	return newweb;
 }
 
-BDiscreteParameter * ParameterWebCache::GetDiscreteParameter(const char * parameterName)
+BDiscreteParameter * ParameterWebCache::GetDiscreteParameter(parameter_cache_parameters param)
 {
 	if (!fCachedParameterWeb)
 		return NULL;
-	if (parameterName == kChannelParameter && fCachedChannelParameter)
-		return fCachedChannelParameter;
-	if (parameterName == kFormatParameter && fCachedFormatParameter)
-		return fCachedFormatParameter;
+	if (fCachedParameters[param])
+		return reinterpret_cast<BDiscreteParameter *> (fCachedParameters[param]);
 	BDiscreteParameter * result = NULL;
 	int32	last = fCachedParameterWeb->CountParameters();
+	const char * name = ParameterName(param);
 	for (int32 i = 0; i < last; i++) {
 		BParameter *parameter = fCachedParameterWeb->ParameterAt(i);
 #if R5_COMPATIBLE
@@ -87,111 +79,140 @@ BDiscreteParameter * ParameterWebCache::GetDiscreteParameter(const char * parame
 		// We shouldn't rely on the names used for the GUI!!!
 		// Those may change at any update of the driver (don't even think about localisation!)
 
-		if (strcmp(parameter->Name(), parameterName) == 0)
+		if (strcmp(parameter->Name(), name) == 0)
 #else
-		if (strcmp(parameter->Kind(), parameterName) == 0)
+		if (strcmp(parameter->Kind(), name) == 0)
 #endif
 		{
 			result = dynamic_cast<BDiscreteParameter *> (parameter);
-			if (parameterName == kChannelParameter)
-				fCachedChannelParameter = result;
-			if (parameterName == kFormatParameter)
-				fCachedFormatParameter = result;
+			fCachedParameters[int(param)] = result;
 			break;
 		}
 	}
 	return result;
 }
 
-int32 ParameterWebCache::GetDiscreteParameterValue(const char * parameterName)
+int32 ParameterWebCache::GetDiscreteParameterValue(parameter_cache_parameters param)
 {
-	BDiscreteParameter	*parameter = GetDiscreteParameter(parameterName);
+	BDiscreteParameter	*parameter = GetDiscreteParameter(param);
 	if (!parameter)
 		return -1;
 	int32		value;
-	size_t		size = sizeof(int32);
+	size_t		size = sizeof(value);
 	bigtime_t	lastChange;
 	if (parameter->GetValue(reinterpret_cast<void *>(&value), &size, &lastChange) == B_OK
-			 && size <= sizeof(int32)) {
+			 && size <= sizeof(value)) {
 		return value;
 	}
 	return -1;
 }
 
-int32 ParameterWebCache::SetDiscreteParameterValue(const char * parameterName, int32 value)
+int32 ParameterWebCache::SetDiscreteParameterValue(parameter_cache_parameters param, int32 value, bool force = false)
 {
-	BDiscreteParameter	*parameter = GetDiscreteParameter(parameterName);
+	BDiscreteParameter	*parameter = GetDiscreteParameter(param);
 	if (!parameter)
 		return -1;
 
-	int32	lastValue = parameter->CountItems() - 1;
-	if (value > lastValue)
-		value = lastValue;
-	if (value < 0)
-		value = 0;
-
+//	int32	lastValue = parameter->CountItems() - 1;
+//	if (value > lastValue)
+//		value = lastValue;
+//	if (value < 0)
+//		value = 0;
 	int32 current_value;
 	bigtime_t time;
-	size_t size = sizeof(int32);
+	size_t size = sizeof(current_value);
 	if ((parameter->GetValue(reinterpret_cast<void *>(&current_value), &size, &time) == B_OK)
-			 && (size <= sizeof(int32))) {
-		if (current_value == value)
-			return current_value;
+			 && (size <= sizeof(current_value))) {
+		if (force || current_value != value)
+			parameter->SetValue(reinterpret_cast<void *>(&value), sizeof(current_value), SET_WHEN);
+		return current_value;
 	}
-	parameter->SetValue(reinterpret_cast<void *>(&value), sizeof(int32), BTimeSource::RealTime());
-	return current_value;
+	return -1;
 }
 
-BContinuousParameter * ParameterWebCache::GetContinuousParameter(const char * parameterName)
+BContinuousParameter * ParameterWebCache::GetContinuousParameter(parameter_cache_parameters param)
 {
 	BContinuousParameter * result = NULL;
 	if (!fCachedParameterWeb)
 		return NULL;
+	if (fCachedParameters[param])
+		return reinterpret_cast<BContinuousParameter *> (fCachedParameters[param]);
 	int32	last = fCachedParameterWeb->CountParameters();
+	const char * name = ParameterName(param);
 	for (int32 i = 0; i < last; i++) {
 		BParameter *parameter = fCachedParameterWeb->ParameterAt(i);
-		if (strcmp(parameter->Kind(), parameterName) == 0)
+		if (strcmp(parameter->Kind(), name) == 0)
 		{
 			result = dynamic_cast<BContinuousParameter *> (parameter);
+			fCachedParameters[param] = result;
 			break;
 		}
 	}
 	return result;
 }
 
-float ParameterWebCache::SetContinuousParameterValue(const char * parameterName, float value)
+float ParameterWebCache::SetContinuousParameterValue(parameter_cache_parameters param, float value, bool force = false)
 {
-	BContinuousParameter	*parameter = GetContinuousParameter(parameterName);
+	BContinuousParameter	*parameter = GetContinuousParameter(param);
 	if (!parameter)
 		return FLT_MIN;
 
-	if (value < parameter->MinValue())
-		value = parameter->MinValue();
-	else if (value > parameter->MaxValue())
-		value = parameter->MaxValue();
+//	if (value < parameter->MinValue())
+//		value = parameter->MinValue();
+//	else if (value > parameter->MaxValue())
+//		value = parameter->MaxValue();
 	float current_value;
 	bigtime_t time;
-	size_t size = sizeof(float);
+	size_t size = sizeof(current_value);
 	if ((parameter->GetValue(reinterpret_cast<void *>(&current_value), &size, &time) == B_OK)
-			 && (size <= sizeof(float))) {
-		if (current_value == value)
-			return current_value;
+			 && (size <= sizeof(current_value))) {
+		if (force || current_value != value)
+			parameter->SetValue(reinterpret_cast<void *>(&value), sizeof(current_value), SET_WHEN);
+		return current_value;
 	}
-	parameter->SetValue(reinterpret_cast<void *>(&value), sizeof(float), BTimeSource::RealTime());
-	return current_value;
+	return -1.0;
 }
 
-float ParameterWebCache::GetContinuousParameterValue(const char * parameterName)
+float ParameterWebCache::GetContinuousParameterValue(parameter_cache_parameters param)
 {
-	BContinuousParameter	*parameter = GetContinuousParameter(parameterName);
+	BContinuousParameter	*parameter = GetContinuousParameter(param);
 	if (!parameter)
 		return FLT_MIN;
 	float		value;
-	size_t		size = sizeof(float);
+	size_t		size = sizeof(value);
 	bigtime_t	lastChange;
 	if (parameter->GetValue(reinterpret_cast<void *>(&value), &size, &lastChange) == B_OK
-			 && size <= sizeof(float)) {
+			 && size <= sizeof(value)) {
 		return value;
 	}
 	return FLT_MIN;
+}
+
+const char * ParameterWebCache::ParameterName(parameter_cache_parameters parameter)
+{
+	const char * gParameterNames[kParameterCacheParametersCount] = {
+#if R5_COMPATIBLE
+		"Channel:",
+		"Video Format:",
+		"Default Image Size:",
+		"Video Input:",
+		"Audio Input:",
+		"Tuner Locale:",
+		"Use Phase Lock Loop",
+#else
+		B_TUNER_CHANNEL,
+		B_VIDEO_FORMAT,
+		B_RESOLUTION,
+		// these are not ok! We still miss definitions!
+		"Video Input:",
+		"Audio Input:",
+		"Tuner Locale:",
+		"Use Phase Lock Loop",
+#endif
+		kBrightnessParameterKind,
+		kContrastParameterKind,
+		kSaturationParameterKind,
+	};
+
+	return gParameterNames[int(parameter)];
 }

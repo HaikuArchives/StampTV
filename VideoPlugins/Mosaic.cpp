@@ -68,17 +68,12 @@ const char* MosaicPluginType::Author()
 	return "Geb";
 }
 
-const char* MosaicPluginType::AboutString()
-{
-	return "Mosaic by Geb";
-}
-
 static const vertice_properties support[] =
 {
 	{	ANY_COLOR_SPACE,
 		ANY_COLOR_SPACE,
 		1.0,
-		VAPI_PROCESS_TO_DISTINCT | VAPI_PROCESS_TO_OVERLAY,
+		VAPI_PROCESS_IN_PLACE | VAPI_PROCESS_TO_DISTINCT | VAPI_PROCESS_TO_OVERLAY,
 	},
 };
 
@@ -263,17 +258,22 @@ void ConfigView::MessageReceived(BMessage *msg)
 		case 'Titl':
 			fEngine->mDisplayTitle = fDisplayTitle->Value() != 0;
 			break;
-		case 'Thro':
+		case 'Thro': {
 			fEngine->mThrough = fThough->Value() != 0;
+			fEngine->UpdateMute();
 			break;
+		}
 		case 'SPre':
 				fEngine->mScanType = 0;
+				fEngine->UpdateMute();
 			break;
 		case 'SCha':
 				fEngine->mScanType = 1;
+				fEngine->UpdateMute();
 			break;
 		case 'NoSc':
 				fEngine->mScanType = 2;
+				fEngine->UpdateMute();
 			break;
 		case 'SDef': {
 			fEngine->mDefaults.MakeEmpty();
@@ -331,6 +331,7 @@ MosaicEngine::MosaicEngine(VideoPluginType * plugin) : VideoPluginEngine(plugin)
 MosaicEngine::~MosaicEngine()
 {
 	Host()->SetWindowTitle();
+	Host()->SetMuteAudio(false);
 	if (mMosaic->Lock())
 		delete mMosaic;
 }
@@ -338,6 +339,7 @@ MosaicEngine::~MosaicEngine()
 status_t MosaicEngine::RestoreConfig(BMessage & config)
 {
 	RestoreConfigWithDefault(config, mDefaults);
+	UpdateMute();
 	return B_OK;
 }
 
@@ -481,4 +483,9 @@ status_t MosaicEngine::ApplyEffect(BBitmap * frame_in, BBitmap * frame_out, int6
 		}
 	}
 	return B_OK;
+}
+
+void MosaicEngine::UpdateMute()
+{
+	Host()->SetMuteAudio(!mThrough && mScanType < 2);
 }

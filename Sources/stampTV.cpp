@@ -47,11 +47,12 @@ stampTV::stampTV() :
 void 
 stampTV::ReadyToRun()
 {
-	new VideoWindow(BRect(gPrefs.X, gPrefs.Y, gPrefs.X + gPrefs.VideoSizeX - 1,
-			gPrefs.Y + gPrefs.VideoSizeY - 1), "stampTV",
+	new VideoWindow(BRect(gPrefs.X, gPrefs.Y, gPrefs.X + gPrefs.WindowWidth - 1,
+			gPrefs.Y + gPrefs.WindowHeight - 1), "stampTV",
 			gPrefs.TabLess ? B_MODAL_WINDOW_LOOK : B_TITLED_WINDOW_LOOK,
 			gPrefs.StayOnTop ? B_FLOATING_ALL_WINDOW_FEEL : B_NORMAL_WINDOW_FEEL,
-			B_WILL_ACCEPT_FIRST_CLICK | B_OUTLINE_RESIZE | B_ASYNCHRONOUS_CONTROLS);
+			B_WILL_ACCEPT_FIRST_CLICK | B_ASYNCHRONOUS_CONTROLS,
+			gPrefs.AllWorkspaces ? B_ALL_WORKSPACES : B_CURRENT_WORKSPACE);
 }
 
 int main()

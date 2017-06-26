@@ -27,11 +27,13 @@
 #include <image.h>
 #include <Rect.h>
 #include <Errors.h>
+#include <String.h>
 
 //	Error codes
 enum {
 	VAPI_HOST_TOO_OLD = B_ERRORS_END + 1970,	// try to avoid conflict with programmer's error codes...
 	VAPI_NOT_SUPPORTED,							// function not supported (by the this host for instance).
+	VAPI_NOT_IMPLEMENTED = VAPI_NOT_SUPPORTED,	// Same thing as VAPI_NOT_SUPPORTED
 	VAPI_HOST_TOO_NEW,							// host requires newer version of plugin
 };
 
@@ -106,8 +108,6 @@ class VideoPluginType
 		virtual const char*	Author() = 0;
 		virtual const char*	AboutString();
 		virtual status_t	About();
-				BWindow *	AboutWindow();
-				void		SetAboutWindow(BWindow * window);
 		// to tell which color spaces the plugin supports
 		// Use quality to tell how good the support is: 1.0 perfect down to 0.0 (next to not supported!)
 		// Sort them in preference order, best first!
@@ -136,7 +136,7 @@ class VideoPluginType
 	private:
 		VideoPluginsHost * 	fHost;
 		image_id			fImageID;
-		BWindow	*			fAboutWindow;
+		BString				fAboutString;
 };
 
 class VideoPluginEngine
@@ -211,7 +211,7 @@ class VideoPluginsHost
 			// This level will tell which layout format is the host assuming
 			VAPI_VERSION = 002,
 			// This tells which minor binary compatible revision is in used
-			VAPI_SUB_VERSION = 001
+			VAPI_SUB_VERSION = 002
 		};
 
 		//	What version of the Video Plugins API
@@ -235,7 +235,7 @@ class VideoPluginsHost
 		virtual status_t	SwitchToChannel(int32 channel);
 			//	how many presets are there? (maximal number of presets)
 		virtual status_t	GetPresetCount(int32 & count);
-			//	get info on the current preset (B_ERROR if current channel isn't a preset)
+			//	get info on the current channel (B_ERROR if current channel isn't a preset)
 		virtual status_t	GetPreset(int32 & slot, BString & name, int32 & channel);
 			//	get the value of a specific preset (B_ERROR if the slot is empty)
 		virtual status_t	GetNthPreset(int32 slot, BString & name, int32 & channel);
@@ -251,6 +251,8 @@ class VideoPluginsHost
 		virtual status_t	SetWindowTitle(const char* name = NULL);
 			//	Opens a config window for this engine
 		virtual status_t	OpenConfigWindow(VideoPluginEngine * engine);
+			//	Controls audio Mute
+		virtual status_t	SetMuteAudio(bool mute);
 		
 		// FBC expansion possibilities...
 		virtual status_t	Perform(perform_code d, void *arg);

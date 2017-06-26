@@ -14,7 +14,7 @@
 #include <Path.h>
 #include <Mime.h>
 #include <fs_attr.h>
-#include <Debug.h>
+#include <InterfaceDefs.h>
 
 Preferences gPrefs;
 
@@ -29,6 +29,10 @@ Preferences::Preferences()
 		X = 100;
 	if (ReadAttr("Y", B_INT32_TYPE, 0, &Y, sizeof(int)) != sizeof(int))
 		Y = 100;
+	if (ReadAttr("WW", B_INT32_TYPE, 0, &WindowWidth, sizeof(int)) != sizeof(int))
+		WindowWidth = 640;
+	if (ReadAttr("WH", B_INT32_TYPE, 0, &WindowHeight, sizeof(int)) != sizeof(int))
+		WindowHeight = 480;
 
 	if (ReadAttr("VideoSizeX", B_INT32_TYPE, 0, &VideoSizeX, sizeof(int)) != sizeof(int))
 		VideoSizeX = 640;
@@ -50,39 +54,56 @@ Preferences::Preferences()
 		Subdivide = true;
 	if (ReadAttr("FullScreen", B_BOOL_TYPE, 0, &FullScreen, sizeof(bool)) != sizeof(bool))
 		FullScreen = false;
+	if (ReadAttr("AllWorkspaces", B_BOOL_TYPE, 0, &AllWorkspaces, sizeof(bool)) != sizeof(bool))
+		AllWorkspaces = true;
 	if (ReadAttr("DisableScreenSaver", B_BOOL_TYPE, 0, &DisableScreenSaver, sizeof(bool)) != sizeof(bool))
 		DisableScreenSaver = false;
+	if (ReadAttr("VSIWS", B_BOOL_TYPE, 0, &VideoSizeIsWindowSize, sizeof(bool)) != sizeof(bool))
+		VideoSizeIsWindowSize = true;
 		
 	attr_info	infos;
 	bool		presets_ok = false;
-	if (GetAttrInfo("Presets", &infos) == B_OK) {
-		char* buffer = new char[infos.size];
-		BMessage	settings;
-		if (ReadAttr("Presets", infos.type, 0, buffer, infos.size) == infos.size
-			&& settings.Unflatten(buffer) == B_OK && settings.what == 'Pref') {
-			// presets loaded normaly
-			presets_ok = true;
+	BMessage	settings;
+	// Try new preset storage
+	if (GetAttrInfo("FullPresets", &infos) == B_OK) {
+		char * buffer = new char[infos.size];
+		if (ReadAttr("FullPresets", infos.type, 0, buffer, infos.size) == infos.size
+			&& settings.Unflatten(buffer) == B_OK && settings.what == 'Pref')
+		{
 			for (int p = 0; p < kMaxPresets; p++) {
-				if (settings.FindString("PresetName", p, &presets[p].name) != B_OK) {
-					presets[p].name = "Preset ";
-					presets[p].name << p + 1;
-				}
-				if (settings.FindInt32("PresetChannel", p, &presets[p].channel) != B_OK)
-					presets[p].channel = -1;
+				settings.FindString("n", p, &presets[p].name);
+				if (settings.FindInt32("c", p, &presets[p].channel) != B_OK)
+					presets[p].channel = LONG_MIN;
+				if (settings.FindInt32("vf", p, &presets[p].videoFormat) != B_OK)
+					presets[p].videoFormat = LONG_MIN;
+				if (settings.FindInt32("vi", p, &presets[p].videoInput) != B_OK)
+					presets[p].videoInput = LONG_MIN;
+				if (settings.FindInt32("ai", p, &presets[p].audioInput) != B_OK)
+					presets[p].audioInput = LONG_MIN;
+				if (settings.FindInt32("tl", p, &presets[p].tunerLocale) != B_OK)
+					presets[p].tunerLocale = LONG_MIN;
 			}
-			if (settings.FindString("AudioName", &AudioName) != B_OK)
-				AudioName = "Line";
+			presets_ok = true;
 		}
 		delete[] buffer;
 	}
-	if (!presets_ok) {
-		for (int p = 0; p < kMaxPresets; p++) {
-			presets[p].name = "Preset ";
-			presets[p].name << p + 1;
-			presets[p].channel = -1;
+	// Try to load older preset format if present
+	if (!presets_ok && GetAttrInfo("Presets", &infos) == B_OK) {
+		char * buffer = new char[infos.size];
+		if (ReadAttr("Presets", infos.type, 0, buffer, infos.size) == infos.size
+			&& settings.Unflatten(buffer) == B_OK && settings.what == 'Pref')
+		{
+			for (int p = 0; p < kMaxPresets; p++) {
+				settings.FindString("PresetName", p, &presets[p].name);
+				if (settings.FindInt32("PresetChannel", p, &presets[p].channel) != B_OK)
+					presets[p].channel = -1;
+			}
+			presets_ok = true;
 		}
-		AudioName = "Line";
+		delete[] buffer;
 	}
+	if (settings.FindString("AudioName", &AudioName) != B_OK)
+		AudioName = "Line";
 	
 	// Plugins settings
 	if (GetAttrInfo("Plugins", &infos) == B_OK) {
@@ -98,14 +119,6 @@ Preferences::Preferences()
 
 	if (ReadAttr("PreferredMode", B_INT32_TYPE, 0, &PreferredMode, sizeof(int32)) < 1)
 		PreferredMode = 0;
-
-	PRINT(("Settings loaded:\n\n"));
-	PRINT(("X: %d\nY: %d\n", X, Y));
-	PRINT(("VideoSizeX: %d\nVideoSizeY: %d\n", VideoSizeX, VideoSizeY));
-	PRINT(("Tabless: %d\n", TabLess));
-	PRINT(("StayOnTop: %d\n", StayOnTop));
-	PRINT(("StayOnScreen: %d\n", StayOnScreen));
-	PRINT(("Subdivide: %d\n", Subdivide));
 }
 
 Preferences::~Preferences()
@@ -116,6 +129,9 @@ Preferences::~Preferences()
 	WriteAttr("VideoSizeX", B_INT32_TYPE, 0, &VideoSizeX, sizeof(int));
 	WriteAttr("VideoSizeY", B_INT32_TYPE, 0, &VideoSizeY, sizeof(int));
 
+	WriteAttr("WW", B_INT32_TYPE, 0, &WindowWidth, sizeof(int));
+	WriteAttr("WH", B_INT32_TYPE, 0, &WindowHeight, sizeof(int));
+
 	WriteAttr("FullScreenX", B_INT32_TYPE, 0, &FullScreenX, sizeof(int));
 	WriteAttr("FullScreenY", B_INT32_TYPE, 0, &FullScreenY, sizeof(int));
 
@@ -124,18 +140,24 @@ Preferences::~Preferences()
 	WriteAttr("StayOnScreen", B_BOOL_TYPE, 0, &StayOnScreen, sizeof(bool));
 	WriteAttr("Subdivide", B_BOOL_TYPE, 0, &Subdivide, sizeof(bool));
 	WriteAttr("FullScreen", B_BOOL_TYPE, 0, &FullScreen, sizeof(bool));
+	WriteAttr("AllWorkspaces", B_BOOL_TYPE, 0, &AllWorkspaces, sizeof(bool));
 	WriteAttr("DisableScreenSaver", B_BOOL_TYPE, 0, &DisableScreenSaver, sizeof(bool));
+	WriteAttr("VSIWS", B_BOOL_TYPE, 0, &VideoSizeIsWindowSize, sizeof(bool));
 
 	BMessage	settings('Pref');
 	for (int p = 0; p < kMaxPresets; p++) {
-		settings.AddString("PresetName", presets[p].name);
-		settings.AddInt32("PresetChannel", presets[p].channel);
+		settings.AddString("n", presets[p].name);
+		settings.AddInt32("c", presets[p].channel);
+		settings.AddInt32("vf", presets[p].videoFormat);
+		settings.AddInt32("vi", presets[p].videoInput);
+		settings.AddInt32("ai", presets[p].audioInput);
+		settings.AddInt32("tl", presets[p].tunerLocale);
 	}
 	settings.AddString("AudioName", AudioName);
 	ssize_t size = settings.FlattenedSize();
 	char* buffer = new char[size];
 	settings.Flatten(buffer, size);
-	WriteAttr("Presets", B_MESSAGE_TYPE, 0, buffer, size);
+	WriteAttr("FullPresets", B_MESSAGE_TYPE, 0, buffer, size);
 	delete[] buffer;
 	
 	Plugins.what = 'Plug';
@@ -146,12 +168,37 @@ Preferences::~Preferences()
 	delete[] buffer;
 
 	WriteAttr("PreferredMode", B_INT32_TYPE, 0, &PreferredMode, sizeof(int32));
+}
 
-	PRINT(("Settings saved:\n\n"));
-	PRINT(("X: %d\nY: %d\n", X, Y));
-	PRINT(("VideoSizeX: %d\nVideoSizeY: %d\n", VideoSizeX, VideoSizeY));
-	PRINT(("Tabless: %d\n", TabLess));
-	PRINT(("StayOnTop: %d\n", StayOnTop));
-	PRINT(("StayOnScreen: %d\n", StayOnScreen));
-	PRINT(("Subdivide: %d\n", Subdivide));
+bool Preferences::ShouldStayOnScreen()
+{
+	return StayOnScreen && (modifiers() & B_OPTION_KEY) == 0;
+}
+
+void Preferences::CheckAndConvert(Preset & model)
+{
+	for (int k = 0; k < kMaxPresets; k++) {
+		Preset & p = gPrefs.presets[k];
+		if (p.IsValid()) {
+			// Set default values in case of convertion (& check)
+			if (p.videoFormat == LONG_MIN)
+				p.videoFormat = model.videoFormat;
+			if (p.videoInput == LONG_MIN)
+				p.videoInput = model.videoInput;
+			if (p.audioInput == LONG_MIN)
+				p.audioInput = model.audioInput;
+			if (p.tunerLocale == LONG_MIN)
+				p.tunerLocale = model.tunerLocale;
+		}
+		// Check that a name exists
+		if (p.name.Length() < 1) {
+			p.name = "Preset ";
+			p.name << k + 1;
+		}
+		// Remove double presets
+		for (int n = 0; n < k; n++) {
+			if (p == gPrefs.presets[n])
+				p.Unset(false);
+		}
+	}
 }

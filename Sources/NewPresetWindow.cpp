@@ -52,10 +52,11 @@ NewPresetWindow::NewPresetWindow(BMessenger* messenger, BRect parent, int preset
 	for (int p = 0; p < kMaxPresets; p++) {
 		BMessage * m = new BMessage('Shor');
 		m->AddInt32("preset", p);
+		m->AddString("name", gPrefs.presets[p].name.String());
 		char	shortcut[4];
 		PresetMenuItem::PresetIndexToShorcutName(p, shortcut);
 		char	full[256];
-		if (gPrefs.presets[p].channel >= 0)
+		if (gPrefs.presets[p].IsValid())
 			sprintf(full, "%s   %s", shortcut, gPrefs.presets[p].name.String());
 		else
 			sprintf(full, "%s", shortcut);
@@ -100,6 +101,11 @@ void NewPresetWindow::MessageReceived(BMessage *message)
 		int32	p;
 		if (message->FindInt32("preset", &p) == B_OK)
 			preset = p;
+		const char * name;
+		if ((modifiers() & (B_SHIFT_KEY | B_COMMAND_KEY | B_CONTROL_KEY | B_OPTION_KEY)) && message->FindString("name", &name) == B_OK) {
+			textcontrol->SetText(name);
+			textcontrol->TextView()->SelectAll();
+		}
 	} else
 		BWindow::MessageReceived(message);
 }

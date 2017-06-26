@@ -38,10 +38,11 @@ class stampPluginsHandler : public PluginsHandler, public BHandler
 		virtual status_t	SwitchToNext(int how_many, bool preset, int32 & index);
 				BMenu *		PluginsMenu();
 		void				InitParameterWeb(media_node & node, BMediaRoster * roster);
-		int32				GetDiscreteParameterValue(const char * parameterName);
-		int32				SetDiscreteParameterValue(const char * parameterName, int32 value);
+		int32				GetDiscreteParameterValue(parameter_cache_parameters parameter);
+		int32				SetDiscreteParameterValue(parameter_cache_parameters parameter, int32 value);
 		virtual status_t	SetWindowTitle(const char* name = NULL);
 		virtual status_t	OpenConfigWindow(VideoPluginEngine * engine);
+		virtual status_t	SetMuteAudio(bool mute);
 
 		// BHandler part
 		virtual	void		MessageReceived(BMessage *message);
@@ -51,14 +52,14 @@ class stampPluginsHandler : public PluginsHandler, public BHandler
 		ParameterWebCache	fParameterWebCache;
 };
 
-inline int32 stampPluginsHandler::GetDiscreteParameterValue(const char * parameterName)
+inline int32 stampPluginsHandler::GetDiscreteParameterValue(parameter_cache_parameters parameter)
 {
-	return fParameterWebCache.GetDiscreteParameterValue(parameterName);
+	return fParameterWebCache.GetDiscreteParameterValue(parameter);
 }
 
-inline int32 stampPluginsHandler::SetDiscreteParameterValue(const char * parameterName, int32 value)
+inline int32 stampPluginsHandler::SetDiscreteParameterValue(parameter_cache_parameters parameter, int32 value)
 {
-	return fParameterWebCache.SetDiscreteParameterValue(parameterName, value);
+	return fParameterWebCache.SetDiscreteParameterValue(parameter, value);
 }
 
 #endif // _STAMP_PLUGINS_HANDLER_H_

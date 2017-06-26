@@ -14,40 +14,54 @@
 
 #include <MediaNode.h>
 
+#include "Preset.h"
+
 class BMediaRoster;
+
+enum parameter_cache_parameters {
+	kChannelParameter,
+	kVideoFormatParameter,
+	kResolutionParameter,
+
+	kVideoInputParameter,
+	kAudioInputParameter,
+	kTunerLocaleParameter,
+	kUsePhaseLockParameter,
+
+	kBrightnessParameter,
+	kContrastParameter,
+	kSaturationParameter,
+
+	kParameterCacheParametersCount
+};
 
 class ParameterWebCache
 {
 public:
-							ParameterWebCache(BParameterWeb * web = NULL);
-							~ParameterWebCache();
-		void				Init(media_node & node, BMediaRoster * roster);
-		void				Release();
-static	BParameterWeb		*NewVideoParameterWeb(media_node & node, BMediaRoster * roster);	// creates a new one
+								ParameterWebCache(BParameterWeb * web = NULL);
+								~ParameterWebCache();
+		void					Init(media_node & node, BMediaRoster * roster);
+		void					Release();
+static	BParameterWeb *			NewVideoParameterWeb(media_node & node, BMediaRoster * roster);	// creates a new one
 
-		BDiscreteParameter	*GetDiscreteParameter(const char * parameterName);
-		int32				GetDiscreteParameterValue(const char * parameterName);
-		int32				SetDiscreteParameterValue(const char * parameterName, int32 value);
+		BDiscreteParameter *	GetDiscreteParameter(parameter_cache_parameters parameter);
+		int32					GetDiscreteParameterValue(parameter_cache_parameters parameter);
+		int32					SetDiscreteParameterValue(parameter_cache_parameters parameter, int32 value, bool force = false);
 
-		BContinuousParameter*GetContinuousParameter(const char * parameterName);
-		float				GetContinuousParameterValue(const char * parameterName);
-		float				SetContinuousParameterValue(const char * parameterName, float value);
+		BContinuousParameter *	GetContinuousParameter(parameter_cache_parameters parameter);
+		float					GetContinuousParameterValue(parameter_cache_parameters parameter);
+		float					SetContinuousParameterValue(parameter_cache_parameters parameter, float value, bool force = false);
 
 private:
-		BParameterWeb		*fCachedParameterWeb;
-		BDiscreteParameter	*fCachedChannelParameter;
-		BDiscreteParameter	*fCachedFormatParameter;
+		BParameterWeb *			fCachedParameterWeb;
+		BParameter *			fCachedParameters[kParameterCacheParametersCount];
+		
+		const char *			ParameterName(parameter_cache_parameters parameter);
 };
 
-// *Only* use those constant, or the caching mechanism won't work!
-// (we do direct pointer comparaison!)
-
-extern const char * kChannelParameter;
-extern const char * kFormatParameter;
-extern const char * kResolutionParameter;
-
-extern const char * kBrightnessParameter;
-extern const char * kContrastParameter;
-extern const char * kSaturationParameter;
+// Definitions missing from Be Headers
+extern const char * kBrightnessParameterKind;
+extern const char * kContrastParameterKind;
+extern const char * kSaturationParameterKind;
 
 #endif // _PARAMETER_WEB_CACHE_H_

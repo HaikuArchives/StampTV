@@ -56,11 +56,6 @@ const char* HorizontalFlipPluginType::Author()
 	return "Geb";
 }
 
-const char* HorizontalFlipPluginType::AboutString()
-{
-	return "Horizontal Flip by Geb";
-}
-
 static const vertice_properties support[] =
 {
 	{	B_RGB16,

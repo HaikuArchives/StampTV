@@ -12,6 +12,7 @@
 
 #include <View.h>
 #include <String.h>
+#include "Preferences.h"
 
 class displayView : public BView
 {
@@ -60,8 +61,14 @@ public:
 class channelDisplay : public displayView
 {
 public:
-						channelDisplay(const BRect & frame);
+						channelDisplay(const BRect & frame, Preset * pendingPresetStorage);
+			void		Hide();
 			void		Set(const char* name);
+			Preset&		SetPendingPreset(Preset* preset);
+private:
+	Preset *			fPendingPresetStorage;
+	Preset				fPendingPreset;
+	Preset				fPreviousPendingPreset;
 };
 
 #endif // _DISPLAY_VIEWS_H_

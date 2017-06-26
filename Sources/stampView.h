@@ -17,6 +17,7 @@
 #include <String.h>
 
 #include "ParameterWebCache.h"
+#include "Preferences.h"
 
 class VideoConsumer;
 class VideoWindow;
@@ -25,7 +26,6 @@ class BScreen;
 class volumeDisplay;
 class channelDisplay;
 class muteDisplay;
-class PluginsHandler;
 
 class stampView : public BView
 {
@@ -45,10 +45,17 @@ public:
 				IDEAL_RESIZE,
 				SHOW_NOTICE,
 				GOTO_WEBSITE,
+				FIND_PLUGINS,
+				RATE_STAMPTV,
+				BUG_REPORT,
 				POPUP_END,
 				SET_AUDIO_SOURCE,
 				DISABLE_SCREEN_SAVER,
 				UPDATE_WINDOW_TITLE,
+				MUTE_AUDIO_ON,
+				MUTE_AUDIO_OFF,
+				VIDEO_SIZE_IS_WINDOW_SIZE,
+				USE_ALL_WORKSPACES,
 				// For BeInControl
 				VOLUME_UP = 'bica',
 				VOLUME_DOWN,
@@ -57,8 +64,15 @@ public:
 				PRESET_UP,
 				PRESET_DOWN,
 				FULLSCREEN,
-				MUTE_AUDIO,
+				MUTE_AUDIO_SWITCH,
 				LAST_CHANNEL,
+		};
+		
+		enum muteCommand {
+			eKeepMuteAsIs,
+			eMuteOn,
+			eMuteOff,
+			eSwitchMute,
 		};
 
 						stampView(BRect frame);
@@ -72,35 +86,46 @@ public:
 	virtual	void		MouseMoved(BPoint, uint32, const BMessage *);
 	virtual	void		Draw(BRect updateRect);
 	virtual	void		Pulse();
+	virtual void		FrameResized(float width = 0, float height = 0);
 
 		status_t		SetUpNodes();
 		void			TearDownNodes();
 
-		BDiscreteParameter	*GetParameter(const char * parameterName)
-			{	return fParameterWebCache.GetDiscreteParameter(parameterName);	}
-		int32			GetDiscreteParameterValue(const char * parameterName)
-			{	return fParameterWebCache.GetDiscreteParameterValue(parameterName); }
-		int32			SetDiscreteParameterValue(const char * parameterName, int32 value)
-			{	return fParameterWebCache.SetDiscreteParameterValue(parameterName, value);	}
+		BDiscreteParameter	*GetParameter(parameter_cache_parameters parameter)
+			{	return fParameterWebCache.GetDiscreteParameter(parameter);	}
+		int32			GetDiscreteParameterValue(parameter_cache_parameters parameter)
+			{	return fParameterWebCache.GetDiscreteParameterValue(parameter); }
+		int32			SetDiscreteParameterValue(parameter_cache_parameters parameter, int32 value)
+			{	return fParameterWebCache.SetDiscreteParameterValue(parameter, value);	}
 		int32			GetChannel()
 			{	return GetDiscreteParameterValue(kChannelParameter);	}
-		void			SetChannel(int32 channel);
+		void			SetChannel(int32 channel, bool delay = true);
+
+		int32			GetCurrentPreset(ParameterWebCache& pwc);
+		int32			GetNextPreset(int direction, ParameterWebCache& pwc);
+		void			SetPreset(int32 preset, bool delay = true)
+			{	SetPreset(gPrefs.presets[preset], delay); }
+		void			SetPreset(Preset& preset, bool delay = true);
+
 		void			AdjustVolume(int v);
-		void			UpdateMute(bool switchMute = false);
+		void			UpdateMute(muteCommand change = eKeepMuteAsIs);
 
 		void			ResizeVideo(int x, int y, BScreen * screen = NULL, display_mode *mode = NULL);
 		status_t		Connect();
+		void			DrawFrame(BBitmap * frame, bool overlay);
 		bool			TryLockConnection();
 		void			LockConnection();
 		void			UnlockConnection();
-		void			SetVisible(bool visible);
-		void			ScreenChanged();
+		void			Suspend(bigtime_t timeout = LONGLONG_MAX);
+		void			Resume();
 		bool			IsFullScreen() const;
-
-		int32			GetCurrentPreset();
-		int32			GetNextPreset(int direction);
+		BRect			ScreenSize();
 
 		void			UpdateWindowTitle(const char * title = NULL);
+		void			UpdateWindowTitle(Preset& preset);
+		
+		void			OpenURL(const char * url);
+		void			WriteBugReport();
 
 	static	long		save_frame_thread(void *);
 		void			SaveFrameThread(BMessage *msg);
@@ -114,9 +139,12 @@ public:
 		int				fTVmaxY;
 
 private:
+		void				ChangedPreset(Preset& newPreset, bool delay);
 		media_node			fVideoInputNode;
 		VideoConsumer		*fVideoConsumer;
 		bool				fAllOK;
+		bool				fSuspend;
+		bigtime_t			fSuspendTimeout;
 
 		BPoint				fClickPoint;
 		bigtime_t			fLastFirstClick;
@@ -127,13 +155,16 @@ private:
 		display_mode		fDisplayMode;
 		BMediaRoster		*fRoster;
 		ParameterWebCache	fParameterWebCache;
-		int32				fLastChannelValue;
+		Preset				fBounceLastPreset;
+		Preset				fBounceCurrentPreset;
 		volumeDisplay		*fVolumeDisplay;
 		channelDisplay		*fChannelDisplay;
 		muteDisplay			*fMuteDisplay;
 		BString				fWindowTitle;
 		int32				fConnectionLock;
 		sem_id				fConnectionLockSem;
+		BBitmap *			fCurrentOverlay;
+		rgb_color			fOverlayKeyColor;
 		friend class		stampPluginsHandler;
 };
 

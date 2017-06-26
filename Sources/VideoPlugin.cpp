@@ -19,6 +19,8 @@
 
 #include <Bitmap.h>
 #include <Window.h>
+#include <String.h>
+#include <Alert.h>
 
 //-------------------------------------------------------------------------
 
@@ -105,6 +107,11 @@ status_t VideoPluginsHost::OpenConfigWindow(VideoPluginEngine * engine)
 	return VAPI_NOT_SUPPORTED;
 }
 
+status_t VideoPluginsHost::SetMuteAudio(bool mute)
+{
+	return VAPI_NOT_SUPPORTED;
+}
+
 void VideoPluginsHost::_reserved_host_1() {}
 void VideoPluginsHost::_reserved_host_2() {}
 void VideoPluginsHost::_reserved_host_3() {}
@@ -117,34 +124,27 @@ void VideoPluginsHost::_reserved_host_8() {}
 //-------------------------------------------------------------------------
 
 VideoPluginType::VideoPluginType(VideoPluginsHost * host, image_id id) :
-	fHost(host), fImageID(id), fAboutWindow(NULL)
+	fHost(host), fImageID(id)
 {
 }
 
 VideoPluginType::~VideoPluginType()
 {
-	if (fAboutWindow->Lock())
-		fAboutWindow->Quit();
 }
 
 const char* VideoPluginType::AboutString()
 {
-	return Name();
+	if (fAboutString.Length() == 0) {
+		fAboutString << Name() << "\nby " << Author();
+	}
+	return fAboutString.String();
 }
 
 status_t VideoPluginType::About()
 {
-	return VAPI_NOT_SUPPORTED;
-}
-
-BWindow * VideoPluginType::AboutWindow()
-{
-	return fAboutWindow;
-}
-
-void VideoPluginType::SetAboutWindow(BWindow * window)
-{
-	fAboutWindow = window;
+	BAlert	* alert = new BAlert(Name(), AboutString(), "OK");
+	alert->Go(NULL);
+	return B_OK;
 }
 
 status_t VideoPluginType::Perform(perform_code d, void *arg)

@@ -98,19 +98,19 @@ private:
 public:
 			BMenu *		OptionsMenu();
 			BBitmap *	GetFrame();	// will return a 'new BBitmap'
-			void		SetWhere(BPoint where) { mWhere = where; }
-			void		SetVisible(bool visible);
-			bool		GetOverlayColor(rgb_color * overlayColor);
+			bool		OverlayActive()	{ return mOverlayBitmap != NULL; }
 
 /*	Connection */
 	
 			void		InitColorSpaceSupport();
 			bool		OverlayCompatible(color_space cspace);
+			bool		CheckOverlayRestrictions(int vWidth, int vHeight, float wWidth, float wHeight);
+			bool		OverlayWouldNotScale()	{ return mOverlayWouldNotScale; }
 			status_t	CreateBuffers(media_format & format, color_space overlay_space,
 							bool draw_in_buffer, bool createOverlay, bool overlayBuffer);
 			void		DeleteBuffers();
 			status_t	SetupVideoNode(media_node & video_node);
-			status_t	Connect(color_space current, int width, int height);
+			status_t	Connect(color_space current, int vWidth, int vHeight, float wWidth, float wHeight);
 			void		Disconnect(bool final = false);
 private:
 			status_t	TryConnect(color_space buffer_space, color_space overlay_space,
@@ -119,7 +119,6 @@ private:
 		
 private:
 	stampView			*mStamp;
-	BPoint				mWhere;
 	bool				mQuitApp;
 
 	BMediaRoster		*fRoster;
@@ -132,13 +131,11 @@ private:
 	media_buffer_id		mBufferMap[kMaxBufferCount];
 	int					mBufferCount;
 	BBitmap				*mOverlayBitmap;
-	int					mLastFrame;
-	bool				mUsingOverlay;
-	bool				mVisible;
-	BBitmap				*mCurrentOverlay;
-	rgb_color			mOverlayKeyColor;
 	BList				mOverlaySpaces;
+	overlay_restrictions	mRestrictions;
+	bool				mOverlayWouldNotScale;
 	stampPluginsHandler	*fPluginsHandler;
+	int					mLastFrame;
 	int64				mFrameCount;
 	bool				mFrameDropped;
 	bool				mFrameRequested;

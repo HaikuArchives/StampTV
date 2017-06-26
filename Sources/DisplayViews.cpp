@@ -190,8 +190,9 @@ void muteDisplay::Set(bool mute)
 	}
 }
 
-// Channel display class
-channelDisplay::channelDisplay(const BRect & frame) : displayView(frame, 0.05, 0.10)
+// Preset display class
+channelDisplay::channelDisplay(const BRect & frame, Preset * pendingPresetStorage) :
+	displayView(frame, 0.05, 0.10), fPendingPresetStorage(pendingPresetStorage)
 {
 }
 
@@ -200,4 +201,21 @@ void channelDisplay::Set(const char* name)
 	fText = name;
 	Resize();
 	Changed();
+}
+
+Preset& channelDisplay::SetPendingPreset(Preset* preset)
+{
+	fPreviousPendingPreset = fPendingPreset;
+	if (preset)
+		fPendingPreset = *preset;
+	else
+		fPendingPreset.Unset();
+	return fPreviousPendingPreset;
+}
+
+void channelDisplay::Hide()
+{
+	displayView::Hide();
+	if (fPendingPresetStorage && fPendingPreset.IsValid())
+		*fPendingPresetStorage = fPendingPreset;
 }

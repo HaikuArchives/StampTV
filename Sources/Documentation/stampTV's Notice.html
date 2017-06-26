@@ -13,7 +13,7 @@
     &copy;2000-2001, <a href="mailto:berenger@francenet.fr">Georges-Edouard Berenger</a>, berenger@francenet.fr <br>
     &copy;2000, <a href="mailto:frank@diematie.sun.ac.za">Frank Olivier</a>, frank@diematie.sun.ac.za <br>
     &copy;1991-1999, Be Incorporated, All rights reserved<br>
-    Hamburg, July 3rd, 2001.
+    Hamburg, October 7th, 2001.
     
     <h3><font color="#1822CD">What is stampTV?</font></h3>
      stampTV is an application for watching TV with your BeOS supported video capture card, possibly while
@@ -54,24 +54,25 @@
 	Launch stampTV. Simply double click on the application, where ever it is! A window should appear with TV content in it.
 	
 	<ul>
-      <li><font color="#1822CD"><b><i>Left-clic inside the window and drag around</i></b></font>
+      <li><font color="#1822CD"><b><i>Left-click inside the window and drag around</i></b></font>
       <br>To move the window around.
       </li>
 
-      <li><font color="#1822CD"><b><i>Double left-clic inside the window</i></b></font>
+      <li><font color="#1822CD"><b><i>Double left-click inside the window</i></b></font>
       <br>To switch to/from full screen mode (or press the Tab key).
       </li>
 
-      <li><font color="#1822CD"><b><i>Middle-clic inside the window and drag in a Tracker's window or on the Desktop</i></b></font>
+      <li><font color="#1822CD"><b><i>Middle-click inside the window and drag in a Tracker's window or on the Desktop</i></b></font>
       <br>To capture a frame and save it as a file. Press the Control key while doing that, and you'll be
       able to select which image format will be used.
       </li>
 
-      <li><font color="#1822CD"><b><i>Righ-clic inside the window</i></b></font>
+      <li><font color="#1822CD"><b><i>Right-click inside the window</i></b></font>
       <br>To access the popup menu. See below for a detailed description of this popup menu.
       </li>
     </ul>
-      <center><IMG SRC="main.jpg" ALT="Main Window" WIDTH="650" HEIGHT="509" BORDER="0">
+      <center>
+		<IMG SRC="main.gif" ALT="Main Window" WIDTH="439" HEIGHT="317" BORDER="0">
 	</center>
 
     <ul>
@@ -113,21 +114,21 @@
       <font color="#1822CD"><b><i>Next Channel</i></b></font> will do what you expect.
       <br><font color="#1822CD"><b><i>Subdivide Menu</i></b></font>
       will split the channel menu in several submenus somewhat improving the channel navigation.
-      <p><center><IMG SRC="channels.gif" ALT="Channels submenu" WIDTH="464" HEIGHT="254" BORDER="0"></center><p>
+      <p><center><IMG SRC="channels.gif" ALT="Channels Selection" WIDTH="424" HEIGHT="228" BORDER="0"></center><p>
 	</li>
       
 
       <li><font color="#1822CD"><b><i>Presets</i></b></font>
-      <br>Gives quick acces to the named channel presets, as well as the creation and edition of those presets.
+      <br>Gives quick access to the named channel presets, as well as the creation and edition of those presets.
       Those functions are accessible with simple keystrokes <b>without using any modifier</b> such as <i>Alt</i>,
       <i>Option</i> or <i>Control</i>.
       <br><font color="#1822CD"><b><i>Next Preset</i></b></font> and
       <font color="#1822CD"><b><i>Next Preset</i></b></font> will do what you expect.
-      <p><center><IMG SRC="presets.gif" ALT="presets.gif" WIDTH="465" HEIGHT="568" BORDER="0"></center><p>
+      <p><center><IMG SRC="presets.gif" ALT="Preset Selection" WIDTH="425" HEIGHT="568" BORDER="0"></center><p>
 	</li>
 
       <li><font color="#1822CD"><b><i>Back to the Last Channel</i></b></font>
-      <br>Brings you back to the last channel you were viewing before before you last changed to an other one.
+      <br>Brings you back to the last channel you were viewing before you last changed to an other one.
       <br>Very handy to switch between two programs.</li>
 
       <li><font color="#1822CD"><b><i>Video Preferences</i></b></font>
@@ -136,20 +137,48 @@
       </li>
 
       <li><font color="#1822CD"><b><i>Video Size</i></b></font>
-      <br>To select the window's size among your TV card's ideal resolutions.
-      <p><center><IMG SRC="videosize.gif" ALT="videosize.gif" WIDTH="328" HEIGHT="254" BORDER="0"></center><p>
+	<font color="#ED181E"><b><i> New!!! v3.0</i></b></font>
+     <br>To select the size of the video among the tuner's best supported resolutions.
+       <p><center><IMG SRC="videosize.gif" ALT="Video Size Selection" WIDTH="316" HEIGHT="243" BORDER="0"></center><p>
+      <p>The <font color="#1822CD"><b><i>Locked (Scale)</i></b></font> option gives you the possibility to choose
+      among two different behaviors when you resize stampTV's window.
+      <br>If the option is active (the menu item is checked), then stampTV will use a video stream of a constant size
+      what ever the size of the window is, and will scale the frames in real-time to fit the window. The result
+      is that the image quality is decreased, and the processor has much more work to do if it doesn't use an overlay.
+      On the other hand, resizing is faster, and you can resize the window as you wish to almost any size.
+      <p><font color="#ED181E"><b><i>Attention!</i></b></font> If an overlay is used, then your video card will do the
+      scaling of the image. The processor won't have any work to do, and the image quality will be somewhat better,
+      but some video cards refuse to shrink an image while others won't grow one... Resize the video to an acceptable size,
+      or don't use the <font color="#1822CD"><b><i>Locked (Scale)</i></b></font> option.
+      <p>If the option is not active, when you resize the window, stampTV will ask for a new video stream with the size of the window.
+      This prevents your processor from doing unnecessary scaling and provides the best possible image quality, but resizing won't be
+      smooth. This is how stampTV
+      used to always function before the <font color="#1822CD"><b><i>Locked (Scale)</i></b></font> option was introduced.
+      <p>The rest of the menu will allow you to select directly the size of the video you wish among the best ones your
+      tuner can provide. If the <font color="#1822CD"><b><i>Locked (Scale)</i></b></font> option is not active, then
+      the window &amp; the video always have the same size: if you resize one, the other is also resized.
+	<p>Use the <font color="#1822CD"><b><i>Locked (Scale)</i></b></font> option when you want to use a plugin that requires more
+	processing power than your computer has. For instance, select a video size of "320x240" and resize the window as you wish.<p>
+     </li>
+ 
+     <li><font color="#1822CD"><b><i>Window Size</i></b></font>
+ 	<font color="#ED181E"><b><i> New!!! v3.0</i></b></font>
+		<br>When the <font color="#1822CD"><b><i>Locked (Scale)</i></b></font> option is active, then you 
+		can resize the window &amp; the video size independently, and this menu will appear.
+		This menu will allow you to resize the window as you wish.
+      <p><center><IMG SRC="windowsize.gif" ALT="Window Size Selection" WIDTH="288" HEIGHT="243" BORDER="0"></center><p>
       </li>
 
       <li><font color="#1822CD"><b><i>Full Screen Mode</i></b></font>
       <br>To select which resolution &amp; refresh rate should be used in full screen mode.
       The video size will be automatically selected to be as big as possible in the selected mode.
       <br>By using the Video Size menu while in full screen size, you can override this automatic choice.
-      <p><center><IMG SRC="fullscreen.gif" ALT="fullscreen.gif" WIDTH="428" HEIGHT="254" BORDER="0"></center><p>
+      <p><center><IMG SRC="fullscreen.gif" ALT="Full Screen Size" WIDTH="388" HEIGHT="228" BORDER="0"></center><p>
       </li>
 
       <li><font color="#1822CD"><b><i>Image Tuning</i></b></font>
       <br>To control the image quality. Provides direct access to the brightness, contrast and color saturation settings.
-      <p><center><IMG SRC="image.gif" ALT="image.gif" WIDTH="449" HEIGHT="254" BORDER="0"></center><p>
+      <p><center><IMG SRC="image.gif" ALT="Image Tuning" WIDTH="409" HEIGHT="228" BORDER="0"></center><p>
       </li>
 
       <li><font color="#1822CD"><b><i>Audio</i></b></font>
@@ -161,20 +190,20 @@
       while the popup menu is shown: just go over the slider and press the mouse button!
       <br>The <font color="#1822CD"><b><i>Volume Up</i></b></font> and <font color="#1822CD"><b><i>Volume Down</i></b></font>
       item allow you to do the same with the keyboard as well: use the up &amp; the down arrows.
-      <p><center><IMG SRC="audio.gif" ALT="audio.gif" WIDTH="544" HEIGHT="254" BORDER="0"></center><p>
+      <p><center><IMG SRC="audio.gif" ALT="Audio Tuning" WIDTH="504" HEIGHT="244" BORDER="0"></center><p>
       </li>
 
 	
 
     <li>
- 	 <font color="#ED181E"><b><i> New!!! v3.0</i></b></font>
 	In the <font color="#1822CD"><b><i>Plugins</i></b></font> submenu, you will find:
-	<p><center><IMG SRC="pluginsconfig.gif" ALT="pluginsconfig.gif" WIDTH="440" HEIGHT="254" BORDER="0"></center><p>
+ 	 <font color="#ED181E"><b><i> Improved!!! v3.0</i></b></font>
+	<p><center><IMG SRC="pluginsconfig.gif" ALT="Plugins Options" WIDTH="385" HEIGHT="228" BORDER="0"></center><p>
     <ul>
 
-      <li><font color="#1822CD"><b><i>Drawer</i></b></font> and <font color="#1822CD"><b><i>Overlayer</i></b></font>
-      <br>	The top part of the submenu shows which plugin(s) is(are) active. In the shown case, the "Drawer"
-	and the "Overlayer" plugins are active.</li>
+      <li><font color="#1822CD"><b><i>Mosaic</i></b></font> and <font color="#1822CD"><b><i>Quarks</i></b></font>
+      <br>The top part of the submenu shows which plugin(s) is(are) active. In the shown case, the "Mosaic"
+	and the "Quarks" plugins are active.</li>
 
 	<ul>
       <li><font color="#1822CD"><b><i>Configure</i></b></font>
@@ -185,24 +214,35 @@
       <li><font color="#1822CD"><b><i>Remove</i></b></font>
       <br>Allows you to deactivate the designated plugin.</li>
 
+      <li><font color="#1822CD"><b><i>About</i></b></font>
+      <br>Gives you some information about the plugin &amp; its author.</li>
+
 	</ul>
 
       <li><font color="#1822CD"><b><i>Add</i></b></font>
       <br>This submenu shows which plugins are available. Select the plugin you wish to activate, and it will be added after the last
       currently active plugin. There is currently no way to reorder plugins, apart from removing them and re-adding them in the wished
-      order.</li>
-	<p><center><IMG SRC="plugins.gif" ALT="plugins.gif" WIDTH="455" HEIGHT="266" BORDER="0"></center><p>
+      order. (Only a few of these plugins are included in stampTV's default package. You'll find the others at the
+      <a href="http://www.bebits.com/search?search=stamptv+plugin">BeBits web size.</a>)
+       <p><font color="#ED181E"><b><i>Attention!</i></b></font> All combinations of plugins are not acceptable. For instance, if
+       the first plugin only produces 16 bits images and the second can only accept 32 bits images, then they can't be put one after
+       the other. If adding a plugin produces a chain which can't work, stampTV will automatically remove the last plugin of the
+       chain, canceling your add-operation. It won't even complain and will just remove it!
+     
+      </li>
+	<p><center><IMG SRC="plugins.gif" ALT="Plugins Menu" WIDTH="415" HEIGHT="476" BORDER="0"></center><p>
 	
 
 	</ul>
 
-    <li>In the <font color="#1822CD"><b><i>Options</i></b></font> allows you to control which options are activated:</p>
-	<p><center><IMG SRC="options.gif" ALT="options.gif" WIDTH="450" HEIGHT="239" BORDER="0"></center><p>
+    <li>The <font color="#1822CD"><b><i>Preferences</i></b></font> submenu
+    allows you to control which options are activated:</p>
+	<p><center><IMG SRC="preferences.gif" ALT="Preferences" WIDTH="410" HEIGHT="279" BORDER="0"></center><p>
 
     <ul>
 
       <li><font color="#1822CD"><b><i>No Tab</i></b></font>
-      <br>To choose wether stampTV's window should have a title tab.</li>
+      <br>To choose whether stampTV's window should have a title tab.</li>
 
       <li><font color="#1822CD"><b><i>On Top</i></b></font>
       <br>Will force or not stampTV's window to remain above all others.</li>
@@ -214,6 +254,11 @@
       <br>To use the entire monitor's surface to watch TV.
       Press Tab or Escape to return to the normal window mode.</li>
 
+      <li><font color="#1822CD"><b><i>Occupy All Workspaces</i></b></font>
+ 	 <font color="#ED181E"><b><i> New!!! v3.0</i></b></font>
+      <br>Let's you choose whether stampTV should be present in every workspace, or only on the current one.
+      When the fullscreen mode is active, this option is automatically turned off.</li>
+
       <li><font color="#1822CD"><b><i>Disable Screen Saver</i></b></font>
  	 <font color="#ED181E"><b><i> New!!! v3.0</i></b></font>
       <br>This options will prevent BeOS's screen saver to be activated while stampTV is running.
@@ -222,12 +267,33 @@
 
 	</ul>
 
-      <li><font color="#1822CD"><b><i>Open stampTV's Notice</i></b></font>
+     <li>The <font color="#1822CD"><b><i>User Services</i></b></font> submenu
+    offers direct access to different Internet pages:</p>
+	<p><center><IMG SRC="userservices.gif" ALT="User Services" WIDTH="456" HEIGHT="264" BORDER="0"></center><p>
+
+    <ul>
+     <li><font color="#1822CD"><b><i>Read stampTV's Notice</i></b></font>
       <br>To (re)read this documentation.</li>
 
       <li><font color="#1822CD"><b><i>Visit stampTV's Web Site at BeBits</i></b></font>
-      <br>Opens you default web browser to stampTV's page at BeBits.</li>
+      <br>Opens your default web browser to <a href="http://www.bebits.com/app/907">stampTV's page at BeBits</a>.
+      <br>You must be connected to the Internet for this to work.</li>
 
+      <li><font color="#1822CD"><b><i>Search for Plugins in BeBits</i></b></font>
+      <br>Opens your default web browser, and queries <a href="http://www.bebits.com/search?search=stamptv+plugin">BeBits
+	 for stampTV's plugins</a>.
+      <br>You must be connected to the Internet for this to work.</li>
+
+      <li><font color="#1822CD"><b><i>Rate stampTV at BeBits</i></b></font>
+      <br>BeBits allows users to rate the applications listed it offers. 
+      You are invited <a href="http://www.bebits.com/appvote/907">to express your opinion about stampTV there</a>!
+      <br>You must be connected to the Internet to do so.</li>
+
+      <li><font color="#1822CD"><b><i>Write a Bug Report</i></b></font>
+      <br>Creates a template email containing information describing your system and stampTV's versions.
+      You can edit this email as you wish to report problems you are experiencing with this program.</li>
+
+	</ul>
       <li><font color="#1822CD"><b><i>Quit</i></b></font>
       <br>Have a guess!...
       </li>
@@ -236,14 +302,14 @@
     </ul>
 
     <h3><font color="#1822CD">Frequently Asked Questions</font></h3>
-    Many users make request for new functionnalities, or request changes. This section aims at explaining
+    Many users make request for new functionalities, or request changes. This section aims at explaining
     why stampTV works the way it does... 
 
     <ul>
        <li><font color="#1822CD"><b><i>Is stampTV working in overlay mode?</i></b></font>
       <br>It is very easy to tell if stampTV successfully managed to use an overlay: Change the channel and see how the channel's
       name is displayed. If the name appears inside a solid rectangular black frame, then overlay is not active.
-      If the green letters appear directly over the TV image, then overlay is in use.
+      If the green letters appear directly over the TV image with no black background, then an overlay is being used.
 	</li>
 
        <li><font color="#1822CD"><b><i>Can you implement Teletext?</i></b></font>
@@ -251,46 +317,34 @@
       Even if it was, that would most probably be a good topic for an other application!
 	</li>
 
-       <li><font color="#1822CD"><b><i>What about remote controlers?</i></b></font>
+       <li><font color="#1822CD"><b><i>What about remote controllers?</i></b></font>
       <br>Support for infra red (IR) controllers is provided through <a href="http://www.bebits.com/app/970">BeInControl</a>.
       For detailed support, please refer to the <a href="http://www.bebits.com/app/970">BeInControl's</a> documentation.
-      <br>Support for remote controllers such as the one your video card has is unlickely to ever happen. This requires quite a lot
-      of detailled information on the card itself, and support would be limited to a subset of the TV cards...
-	</li>
-
-     <li><font color="#1822CD"><b><i>Why can't you resize stampTV's window in realtime like BeOS's TV does?</i></b></font>
-      <br>
-      In short, because we don't cheat and make no compromise on image quality! When you resize stampTV's window, it asks to the
-      TV card to deliver the best image quality it can at this resolution. This change requires a break in the image stream
-      the time the entire media nodes chain adapts to the new resolution (old buffers are deleted, new are created...).
-      This operation is expensive and can not be done without
-      stoping the video stream (which in turn stops the audio stream...).
-      <br>&nbsp;&nbsp;How does BeOS's TV then? It just doesn't! It negociates a resolution when it starts and sticks to it until the application
-      quits. When the window is resized, the image is dilated or shrinked as necessary, wasting CPU power &amp; image
-      quality... This looks good while you resize the window, but if you look closely, well, it is not very satisfactory!
+      <br>Support for remote controllers such as the one your video card has is unlikely to ever happen. This requires quite a lot
+      of detailed information on the card itself, and support would be limited to a subset of the TV cards...
 	</li>
 
       <li><font color="#1822CD"><b><i>Can't you make of stampTV a replicant?</i></b></font>
       <br>Interesting request. Versions 2.1 &amp; 2.2 bring essential code changes which should make this easy now:
       everything is now handled by the view itself, leaving next to nothing into the BApplication class, and only
       what is strictly necessary inside the BWindow class. Preferences should work as well. Want to finish replicant support?
-      If so, get in touch with me as soon as possible to be sure to synchronise your efforts!
+      If so, get in touch with me as soon as possible to be sure to synchronize your efforts!
 	</li>
     </ul>
 
 <h3><font color="#1822CD">StampTV's License</font></h3>
 
-StampTV's core functionnality is based on a Be Sample Code, if mentioned in the corresponding file.<br>
+StampTV's core functionality is based on a Be Sample Code, if mentioned in the corresponding file.<br>
 Redistribution and use in source and/or binary forms, with or without
 modification, are permitted provided that the following conditions are met:<p>
 <ol>
 <li>You comply with the Be Sample Code License (included below) if you
-   use any of the files mentionning a copyright from Be Incorporated.
+   use any of the files mentioning a copyright from Be Incorporated.
 
-<li>Redistributions of source code must retain the following copyright
+<li>Redistribution of source code must retain the following copyright
    notice, this list of conditions, and the following disclaimer.
 
-<li>Redistributions in binary form must reproduce the following copyright
+<li>Redistribution in binary form must reproduce the following copyright
    notice, this list of conditions, and the following disclaimer in the
    documentation and/or other materials provided with the distribution.
 
@@ -320,7 +374,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
      
      <p>stampTV is provided with source code for anyone to play with. If you want to contribute
      with any improvement or bug fix, please let us know!
-     We will see if it makes sence for the official distribution.
+     We will see if it makes sense for the official distribution.
      <p><b><i>Please,</i></b> before you do any major work on stampTV's source code, why don't you drop us a note
      to be sure efforts are not duplicate? That will prevent frustration for everyone! Everyone hates it when one
      discovers that what he has just written is already in the works...
@@ -335,10 +389,10 @@ modification, are permitted provided that the following conditions
 are met:
 
 <ol>
-<li>Redistributions of source code must retain the above copyright
+<li>Redistribution of source code must retain the above copyright
    notice, this list of conditions, and the following disclaimer.
 
-<li>Redistributions in binary form must reproduce the above copyright
+<li>Redistribution in binary form must reproduce the above copyright
    notice, this list of conditions, and the following disclaimer in the
    documentation and/or other materials provided with the distribution.
 
@@ -364,7 +418,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
       which you can wipe out by moving a window around.</li>
       
       <li>Resizing the window (or zooming it) will cause a short audio interruption. This is normal: the connection
-      with the media node is cut and re-established with buffers of the adequate new size. This garanties that the image
+      with the media node is cut and re-established with buffers of the adequate new size. This guaranties that the image
       quality is always as good as possible because the driver always provides an image of the right side (no scaling is
       ever done by the app server, unlike with TV).</li>
       
@@ -375,7 +429,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
     <ul>
       <li>Replicant support.</li>
       <li>Support for more remote controllers.</li>
-	 <li>A remote controler plugin.</li>
+	 <li>A remote controller plugin.</li>
 	 <li>A mosaic plugin to "watch" different channels at once.</li>
 	 <li>More plugins.</li>
 
@@ -383,41 +437,55 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
 
     <h3><font color="#1822CD">History</font></h3>
 
-     <h4>v3.0b5 (July 3rd, 2001)</h4>
+     <h4>v3.0 (October 7th, 2001)</h4>
 
     <ul>
-		<li>Once again, changed the way parameterweb objects are handled. Added Continuous parameters support.</li>
-		<li>Improvements for plugins support (see plugins for more details).</li>
+ 	     <li>Introduction of plugins! See <a href="stampTV's%20Plugins.html">separate documentation</a> for details!</li>
+		<li>A "Video Plugins" folder is created if it doesn't exist in the "/boot/home/config/add-ons" folder.
+		This is were your plugins should be stored. stampTV will also scan a folder called "Plugins" if it exists in
+		stampTV's folder.</li>
+		<li>Changed frame grabbing to be thread safe &amp; to capture the image as it is after plugin processing.</li>
+
+		<li>Presets now include more parameters: the channel number, the video &amp; audio input selected, the video
+		format and the tuner locale. You really shouldn't need to know more than that, but if you want more details (or if
+		things don't work the way you expect), then read further...
+		<p>When stampTV is started, if it can't find presets in the new format, it will
+		convert the presets saved in the older format by setting the missing values (video &amp; audio input, video format &amp; tuner local)
+		to the current value.
+		<br>This should be fine in most cases. However, if the taken values are not correct for most of your presets,
+		you may want to set the settings to the better "default" state and force a new conversion.
+		<br>To do that, set the settings as you wish, quit stampTV, open a Terminal and type:
+		<pre>rmattr FullPresets /boot/home/config/settings/stampTV.preferences</pre>
+		This will delete the presets saved in the new format only. Then launch stampTV again: it will re-import the "old"
+		pre-version 3.0b7 presets.
+		<p>This new preset format will be completely transparent for most users simply updating to a newer version of stampTV.
+		However, if you switch between an older version of stampTV and a newer, you will see that presets are kept separated:
+		preset changes made with an older stampTV version won't be visible by the newer stampTV, and vice versa.</li>
+
+		<li>Added the "Locked (Scale)" option to force the video size to be fixed. Very handy when a plugin is very CPU
+		intensive and won't work well at a big size. Look above for more details.</li>
+		<li>Added the window size menu when the "Locked (Scale)" option is active.
+
+		<li>Added handling of (some) overlay limitations. Overlay will be disabled as required, if it
+		can't be scaled to the desired size.</li>
+
+		<li>Added the "Occupy All Workspaces" option, which in facts, now allows you to have stampTV present in one
+		workspace only, since it previously always was present in all workspaces!</li>
+
+		<li>Much more intelligent "Back to the Last Channel" option. It will bounce back to the last channel you were really
+		looking at, not the last channel you just browsed through. This makes the "Back" option much more useful!</li>
+
+		<li>The stay-on-screen option can temporally be disabled with the option key. Very handy when stampTV
+		hides some object which lies on your desktop!</li>
+		<li>Built the "User Services" menu, with more links to different web pages, and built-in an email bug-report
+		feature.</li>
 		<li>Fixed the license: includes the Be Sample Code License (as it should have since the beginning),
 		adds the stampTV License and the stampTV Video Plugin License (in the plugin's notice).</li>
-    </ul>
 
-     <h4>v3.0b4 (March 30th, 2001)</h4>
-
-    <ul>
-		<li>Changed frame grabbing to be thread safe &amp; to capture the image as it is after plugin processing.</li>
-		<li>Updated the documentation.</li>
-    </ul>
-
-     <h4>v3.0b3 (March 28th, 2001)</h4>
-
-    <ul>
-		<li>Important plugins specific changes: refer to the <a href="stampTV's%20Plugins.html">separate documentation</a> for details!</li>
-    </ul>
-
-     <h4>v3.0b2 (March 26th, 2001)</h4>
-
-    <ul>
-    		<li>Fixed PAL-M workaround (v2.3.1 fix).</li>
  		<li>Added Sean Long's option to disable screen savers while stampTV is running.</li>
-		<li>Plugins specific changes: refer to the <a href="stampTV's%20Plugins.html">separate documentation</a> for details!</li>
-    </ul>
 
-     <h4>v3.0b1 (March 20th, 2001)</h4>
-
-    <ul>
-      <li>Introduction of plugins! See <a href="stampTV's%20Plugins.html">separate documentation</a> for details!</li>
-    </ul>
+		<li>Added half-max size for PAL format to get max quality for that format (no interlacing issue).</li>
+	</ul>
 
      <h4>v2.3.1 (March 22nd, 2001)</h4>
 
@@ -431,10 +499,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
       <li>Added the "Image Tuning" menu (Contrast/Saturation/Brightness).</li>
       <li>Added BeInControl support for IR control. You'll find a BeInControl configuration file.
       For information about BeInControl, please see its own documentation.</li>
-      <li>Improved clic handling for draging &amp; fullscreen switching.</li>
+      <li>Improved click handling for dragging &amp; fullscreen switching.</li>
 	 <li>Fixed a bug when switching workspaces.</li>
 	 <li>Prepared support for plugins (see upcoming stampTV v3.0).</li>
-	 <li>Improved/fixed frame grabing to support 16 bits color modes.</li>
+	 <li>Improved/fixed frame grabbing to support 16 bits color modes.</li>
 	 <li>Fixed many memory leaks.</li>
       <li>Limit video size for NTSC. Added fallback to lower video sizes when connection fails.</li>
       <li>Added channel, volume &amp; mute displays.</li>
@@ -449,17 +517,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
       <li>Added Bruno G. Albuquerque's work around a bt848 driver bug in PAL-M mode. Made some parts of code more generic
       to make implementation cleaner.</li>
       <li>Added the "Back to the Last Channel" option.</li>
-      <li>Improved smoothness when moving the window by draging its content.</li>
+      <li>Improved smoothness when moving the window by dragging its content.</li>
       <li>Fixed a full screen bug when not in the first workspace.</li>
       <li>Changed wheel action: It will go to the next or previous preset (not channel), unless you press the shift key, or have
       caps lock activated.</li>
-      <li>Implemented overlay support. This reduces CPU usage dramaticaly, while providing better performance.
+      <li>Implemented overlay support. This reduces CPU usage dramatically, while providing better performance.
       The motion is extremely smooth. Note that your video card's driver might not support hardware overlay (yet).
       In that case, you should be able to use stampTV nevertheless, just as with previous versions,
       possibly taking benefit from the next improvement!</li>
       <li>stampTV now tries several color depths, in particular, the current one to improve efficiency.
       This makes a big difference when overlay is not in use.</li>
-      <li>Improved smoothness when moving the window by draging its content.</li>
+      <li>Improved smoothness when moving the window by dragging its content.</li>
       <li>Fixed a full screen bug when not in the first workspace.</li>
       <li>Changed wheel action: It will go to the next or previous preset (not channel), unless you press the shift key, or have
       caps lock activated.</li>
@@ -468,12 +536,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
      <h4>v2.2 (December 3rd, 2000)</h4>
 
     <ul>
-      <li>Fixed hangs & crashes when using the video preferences window.</li>
+      <li>Fixed hangs &amp; crashes when using the video preferences window.</li>
       <li>Improved the way stampTV quits, and hopefully solved some rare crashes. Strangely enough, this is a very
-      tricky problem! Be very carefull if you want to change this part of the code!</li>
+      tricky problem! Be very careful if you want to change this part of the code!</li>
       <li>stampTV is no more a BDirectWindow which should make it compatible with more video cards. Moreover, it allows you to 
       create &amp; edit presets as well as use the popup menu even while in full screen mode.
-      This also provides a better independance on the window type: an other step for the replicant support!
+      This also provides a better independence on the window type: an other step for the replicant support!
       (Note: the important BDirectWindow methods where never used...)</li>
       <li>You can now choose the full screen resolution. stampTV will automatically use the best TV resolution, but you
       can choose an other one if you wish.</li>
@@ -486,14 +554,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</font></b>
      <h4>v2.1 (November 22nd, 2000)</h4>
 
     <ul>
-      <li>Added detection of your TV card & your video card abilities. The window size is now limited
+      <li>Added detection of your TV card &amp; your video card abilities. The window size is now limited
       by the TV card abilities. The full screen size is now determined dynamically: it is the biggest size
       supported by both the TV card &amp; the video card. That resolution should provide the best full screen
       results.</li>
       <li>Implemented intelligent zooming: you'll switch between the different ideal window sizes, that is,
       the window sizes which are best supported by your TV card. You can also access each of those sizes
       directly. 
-      <li>Added quick access to this documentation and to stampTV's website.</li>
+      <li>Added quick access to this documentation and to stampTV's web site.</li>
       <li>Cleaned up/rearranged the source code. Removed many bugs &amp; improved many internals.
       Main classes are now split to improve readability. Simplified many things.
       This work prepares replicant support a huge deal!</li>

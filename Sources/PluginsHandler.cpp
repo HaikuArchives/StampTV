@@ -39,6 +39,8 @@
 #include <Path.h>
 #include <Application.h>
 #include <Roster.h>
+#include <FindDirectory.h>
+#include <Directory.h>
 #include <Alert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +48,8 @@
 
 #define	WARNING(x)	printf x
 #define	PROGRESS(x)	printf x
+
+const char * kPluginsDirectoryName = "Video Plugins";
 
 PluginsHandler::PluginsHandler() : fPathsPool(NULL), fSizeOnePath(-1), fAllocatedCount(0),
 	fPathCount(0), fReadyToFilter(false)
@@ -75,7 +79,13 @@ void PluginsHandler::ScanPluginsFolder()
 		path.Append("Plugins", true);
 		ScanOnePluginsFolder(path.Path());
 	}
-	ScanOnePluginsFolder("/boot/home/config/add-ons/Video Plugins");
+	if (find_directory(B_COMMON_ADDONS_DIRECTORY, &path, true) == B_OK) {
+		BDirectory	dir(path.Path());
+		if (!dir.Contains(kPluginsDirectoryName, B_DIRECTORY_NODE))
+			dir.CreateDirectory(kPluginsDirectoryName, NULL);
+		path.Append(kPluginsDirectoryName);
+		ScanOnePluginsFolder(path.Path());
+	}
 	// Let's remove duplicate plugins (same ID).
 	for (int t = 0; t < fTypeList.CountItems(); t++) {
 		for (int tt = t+1; tt < fTypeList.CountItems(); tt++) {
@@ -163,7 +173,7 @@ void PluginsHandler::ScanOnePluginsFolder(const char * rootdir)
 							&& node.ReadAttr("BEOS:TYPE", B_MIME_STRING_TYPE, 0, type, B_MIME_TYPE_LENGTH) > 0
 							&& strcmp(type, B_APP_MIME_TYPE) == 0) {
 							// To help debugging if a crash occurs...
-							printf("Loading \"%s\" as an addon... ", path);
+							PROGRESS(("Loading \"%s\" as an addon... ", path));
 							fflush(stdout);
 							char	name[B_OS_NAME_LENGTH];
 							strncpy(name, entry->d_name, B_OS_NAME_LENGTH);
@@ -172,17 +182,17 @@ void PluginsHandler::ScanOnePluginsFolder(const char * rootdir)
 							image_id videoplugin = load_add_on(path);
 							if (videoplugin > 0)
 							{	// the file is indeed an addon, but is it a VST plugin?
-								printf("OK! Video Plugin?... ");
+								PROGRESS(("OK! Video Plugin?... "));
 								fflush(stdout);
 								status_t (*video_plugin)(TList<VideoPluginType> & plugin_list, VideoPluginsHost * host, image_id id);
 								if (get_image_symbol (videoplugin, "GetVideoPlugins", B_SYMBOL_TYPE_TEXT, (void**) &video_plugin) == B_OK)
 								{	// Chances are now that this is a VST plugin, but is it supported?...
-									printf("Yes!\n");
+									PROGRESS(("Yes!\n"));
 									(*video_plugin)(fTypeList, this, videoplugin);
 								} else
-									printf("No!\n");
+									PROGRESS(("No!\n"));
 							} else
-								printf("Not an addon!\n");
+								PROGRESS(("Not an addon!\n"));
 						}
 					}
 					else if (S_ISDIR(st.st_mode))

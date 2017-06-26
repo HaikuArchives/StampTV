@@ -11,38 +11,39 @@
 #ifndef _PREFERENCES_H_
 #define _PREFERENCES_H_
 
-#include <String.h>
 #include <File.h>
 #include <Message.h>
 
-const int kMaxPresets = 38; // F1 - F12 + 'A' - 'Z'
-
-class Preset
-{
-public:
-	BString	name;
-	int32	channel;
-};
+#include "Preset.h"
 
 class Preferences : BFile
 {
 public:
 			Preferences();
 			~Preferences();
+
+	// Accessors to know how the setting should be considered "right now"
+	// Allows temporary changes, like when a modifier is pressed.
+	bool	ShouldStayOnScreen();
+	void	CheckAndConvert(Preset & model);
 	
-	int 	X;
-	int 	Y;
-	int		VideoSizeX;
-	int		VideoSizeY;
-	int		FullScreenX;
-	int		FullScreenY;
+	int32 	X;
+	int32 	Y;
+	int32	WindowWidth;
+	int32	WindowHeight;
+	int32	VideoSizeX;
+	int32	VideoSizeY;
+	int32	FullScreenX;
+	int32	FullScreenY;
 	
 	bool	TabLess;
 	bool	StayOnTop;
 	bool	StayOnScreen;
 	bool	Subdivide;
 	bool	FullScreen;
+	bool	AllWorkspaces;
 	bool	DisableScreenSaver;
+	bool	VideoSizeIsWindowSize;
 	Preset	presets[kMaxPresets];
 	uint32	PreferredMode;
 	BString	AudioName;

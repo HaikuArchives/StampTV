@@ -30,6 +30,8 @@
 #include <TranslationKit.h>
 #include <scheduler.h>
 #include <Bitmap.h>
+#include <Roster.h>
+#include <Path.h>
 
 status_t 
 stampView::SetUpNodes()
@@ -96,24 +98,23 @@ stampView::SetUpNodes()
 //	printf("\n\nChannel kind: %s\n", B_TUNER_CHANNEL);
 //	printf("Resolution kind: %s\n", B_RESOLUTION);
 //	printf("Video format kind: %s\n", B_VIDEO_FORMAT);
-//	BParameterWeb	*web = GetParameterWeb();
-//	if (!web)
-//		return status;
-//	
-//	for (int32 i = 0; i < web->CountParameters(); i++) {
-//		BParameter *parameter = web->ParameterAt(i);
-//		type_code tp = parameter->ValueType();
-//		printf("Name: %s Kind: %s Unit: %s Type: %4s ID:%d\n", parameter->Name(), parameter->Kind(), parameter->Unit(), (const char*) &tp, int(parameter->ID()));
-//		BDiscreteParameter * discret = dynamic_cast<BDiscreteParameter *> (parameter);
-//		BContinuousParameter * continuous = dynamic_cast<BContinuousParameter *> (parameter);
-//		if (discret) {
-//			for (int32 k = 0; k < discret->CountItems(); k++) {
-//				printf("  %d: %s   Value: %d\n", int(k), discret->ItemNameAt(k), int(discret->ItemValueAt(k)));
-//			}
-//		} else if (continuous) {
-//			printf("  Continuous parameter\n");
-//		} else
-//			printf("  (don't know)\n");
+//	BParameterWeb	*web = fParameterWebCache.NewVideoParameterWeb(fVideoInputNode, fRoster);
+//	if (web) {
+//		for (int32 i = 0; i < web->CountParameters(); i++) {
+//			BParameter *parameter = web->ParameterAt(i);
+//			type_code tp = parameter->ValueType();
+//			printf("Name: %s Kind: %s Unit: %s Type: %4s ID:%d\n", parameter->Name(), parameter->Kind(), parameter->Unit(), (const char*) &tp, int(parameter->ID()));
+//			BDiscreteParameter * discret = dynamic_cast<BDiscreteParameter *> (parameter);
+//			BContinuousParameter * continuous = dynamic_cast<BContinuousParameter *> (parameter);
+//			if (discret) {
+//				for (int32 k = 0; k < discret->CountItems(); k++) {
+//					printf("  %d: %s   Value: %d\n", int(k), discret->ItemNameAt(k), int(discret->ItemValueAt(k)));
+//				}
+//			} else if (continuous) {
+//				printf("  Continuous parameter\n");
+//			} else
+//				printf("  (don't know)\n");
+//		}
 //	}
 
 	delete[] fTVx;
@@ -125,23 +126,37 @@ stampView::SetUpNodes()
 		// Determine max window size: Max supported resolution of TV input card
 		display_mode *list;
 		uint32 count;
-		BScreen scr(Window());
-		display_mode current_mode;
-		scr.GetMode(&current_mode);
-		scr.GetModeList(&list, &count);
+		{
+			BScreen scr(Window());
+			display_mode current_mode;
+			scr.GetMode(&current_mode);
+			scr.GetModeList(&list, &count);
+		}
 		int	mwx, mwy;
 		mwx = mwy = 0;
+		int32	format = GetDiscreteParameterValue(kVideoFormatParameter);
+		// NTSC-M NTSC-J and PAL-M don't support more than 720*480!
+		bool	limitSize = (format == 1 || format == 2 || format == 4);
+		bool	extraSizeInserted = limitSize;	// only for big formats
+		const	int insertX = 768 / 2;
+		const	int insertY = 576 / 2;
 		int maxResolutions = resolution->CountItems();
-		fTVx = new int[maxResolutions];
-		fTVy = new int[maxResolutions];
-		int32	format = GetDiscreteParameterValue(kFormatParameter);
+		fTVx = new int[maxResolutions + 1];
+		fTVy = new int[maxResolutions + 1];
 		fTVResolutions = 0;
 		for (int32 k = 0; k < maxResolutions; k++) {
 			// find each "natural" resolution of the video card (TV)
 			int	x, y;
 			sscanf(resolution->ItemNameAt(k), "%dx%d", &x, &y);
-			if ((format == 1 || format == 2 || format == 4) && (x > 720 || y > 480))
-				continue;	// NTSC-M NTSC-J and PAL-M don't support more than 720*480!
+			if (x < 10 || y < 10 || x > 2048 || y > 2048 || limitSize && (x > 720 || y > 480))
+				continue;
+			if (!extraSizeInserted && x <= insertX && y <= insertY) {
+				if (x != insertX || y != insertY) {
+					fTVx[fTVResolutions] = insertX;
+					fTVy[fTVResolutions++] = insertY;
+				}
+				extraSizeInserted = true;
+			}
 			fTVx[fTVResolutions] = x;
 			fTVy[fTVResolutions++] = y;
 			if (x >= mwx && y >= mwy) {
@@ -189,13 +204,14 @@ stampView::SetUpNodes()
 		return status;
 
 	/* Connect The Nodes!!! */
+	LockConnection();
+	fVideoFrame = Bounds();
 	status = Connect();
+	UnlockConnection();
 	if (status != B_OK) {
 		ErrorAlert("Can't connect the video source to the consumer node!", status);
 		return status;
 	}
-	fVideoFrame = Bounds();
-	fVideoConsumer->SetWhere(B_ORIGIN);
 
 	/* set time sources */
 	status = fRoster->SetTimeSourceFor(fVideoInputNode.node, fTimeSourceNode.node);
@@ -224,12 +240,11 @@ stampView::SetUpNodes()
 	initLatency += estimate_max_scheduling_latency();
 	
 	BTimeSource *timeSource = fRoster->MakeTimeSourceFor(fVideoInputNode);
-	bool running = timeSource->IsRunning();
+	bigtime_t real = BTimeSource::RealTime();
 	
 	/* workaround for people without sound cards */
 	/* because the system time source won't be running */
-	bigtime_t real = BTimeSource::RealTime();
-	if (!running)
+	if (!timeSource->IsRunning())
 	{
 		status = fRoster->StartTimeSource(fTimeSourceNode, real);
 		if (status != B_OK) {
@@ -260,6 +275,9 @@ stampView::SetUpNodes()
 		return status;
 	}
 	
+	fBounceCurrentPreset.SetToCurrent(fParameterWebCache);
+	gPrefs.CheckAndConvert(fBounceCurrentPreset);
+
 	fAllOK = (status == B_OK);
 	
 	return status;
@@ -289,13 +307,6 @@ stampView::TearDownNodes()
 		fVideoConsumer = NULL;
 	} else
 		be_app->PostMessage(B_QUIT_REQUESTED);
-}
-
-void
-stampView::SetChannel(int32 channel)
-{
-	fLastChannelValue = SetDiscreteParameterValue(kChannelParameter, channel);
-	UpdateWindowTitle();
 }
 
 void
@@ -395,7 +406,7 @@ stampView::AdjustVolume(int v)
 }
 
 void
-stampView::UpdateMute(bool switchMute)
+stampView::UpdateMute(muteCommand change)
 {
 	media_node	outNode;
 	if (fRoster && fRoster->GetAudioOutput(&outNode) == B_OK) {
@@ -409,18 +420,30 @@ stampView::UpdateMute(bool switchMute)
 						// mute selector: read its state
 						BDiscreteParameter * dp = dynamic_cast<BDiscreteParameter *> (parameter);
 						if (dp) {
-							int32 current_value;
+							int32 value;
 							bigtime_t time;
 							size_t size = sizeof(int32);
-							if ((parameter->GetValue(reinterpret_cast<void *>(&current_value), &size, &time) == B_OK)
+							if ((parameter->GetValue(reinterpret_cast<void *>(&value), &size, &time) == B_OK)
 									 && (size <= sizeof(int32))) {
-								if (switchMute) {
-									current_value = (current_value == 0);	// switch state
-									dp->SetValue(reinterpret_cast<void *>(&current_value), sizeof(int32), BTimeSource::RealTime());
-									if (current_value == 1 && !fVolumeDisplay->IsHidden())
+								if (change != eKeepMuteAsIs) {
+									switch (change) {
+										case eMuteOn:
+											value = 1;
+											break;
+										case eMuteOff:
+											value = 0;
+											break;
+										case eSwitchMute:
+											value = (value == 0);	// switch state
+											break;
+										case eKeepMuteAsIs:
+											break;
+									}
+									dp->SetValue(reinterpret_cast<void *>(&value), sizeof(int32), BTimeSource::RealTime());
+									if (value == 1 && !fVolumeDisplay->IsHidden())
 										fVolumeDisplay->Hide();
 								}
-								fMuteDisplay->Set(current_value != 0);
+								fMuteDisplay->Set(value != 0);
 							}
 						}
 					}
@@ -447,9 +470,17 @@ stampView::ResizeVideo(int x, int y, BScreen * screen = NULL, display_mode *mode
 				besty = fTVy[r];
 			}
 		}
+		Invalidate();
 	}
 	gPrefs.VideoSizeX = bestx;
 	gPrefs.VideoSizeY = besty;
+	fVideoFrame = Bounds();
+	if (IsFullScreen() && gPrefs.VideoSizeIsWindowSize) {
+		bestx = x;
+		besty = y;
+		BPoint	p(floorf((fVideoFrame.right + 1 - bestx) / 2), floorf((fVideoFrame.bottom + 1 - besty) / 2));
+		fVideoFrame.Set(p.x, p.y, p.x + bestx - 1, p.y + besty - 1);
+	}
 	LockConnection();
 	if (fWindow)
 		fWindow->BeginViewTransaction();
@@ -457,60 +488,40 @@ stampView::ResizeVideo(int x, int y, BScreen * screen = NULL, display_mode *mode
 	if (screen)
 		screen->SetMode(mode);
 	Connect();
-	if (fWindow)
-		fWindow->EndViewTransaction();
 	UnlockConnection();
-	// Connection might have failed and falled back to an other size!
-	bestx = gPrefs.VideoSizeX;
-	besty = gPrefs.VideoSizeY;
-	if (!IsFullScreen() && fWindow)
-		fWindow->ResizeTo(bestx - 1, besty - 1);
-	else
-		Invalidate();	// Update the possible black frame
-	BRect	f = Bounds();
-	BPoint	p(floorf((f.right + 1 - bestx) / 2), floorf((f.bottom + 1 - besty) / 2));
-	fVideoConsumer->SetWhere(p);
-	fVideoFrame.Set(p.x, p.y, p.x + bestx - 1, p.y + besty - 1);
 	fVolumeDisplay->SetFrame(fVideoFrame);
 	fChannelDisplay->SetFrame(fVideoFrame);
 	fMuteDisplay->SetFrame(fVideoFrame);
+	if (fWindow)
+		fWindow->EndViewTransaction();
 }
 
 status_t
 stampView::Connect()
 {
+	if (fSuspend)
+		return B_OK;
 	status_t	s = B_MEDIA_BAD_FORMAT;
-	int			x = gPrefs.VideoSizeX;
-	int			y = gPrefs.VideoSizeY;
 
 	bool		PALMWorkAround = false;
-	if (GetDiscreteParameterValue(kFormatParameter) == 4) { //PAL-M
-		SetDiscreteParameterValue(kFormatParameter, 1); // NTSC-M
+	if (GetDiscreteParameterValue(kVideoFormatParameter) == 4) { //PAL-M
+		SetDiscreteParameterValue(kVideoFormatParameter, 1); // NTSC-M
 		PALMWorkAround = true;
 	}
-	
+
+	if (fCurrentOverlay) {
+		SetHighColor(0, 0, 0);
+		FillRect(Bounds());
+		ClearViewOverlay();
+		Sync();
+		fCurrentOverlay = NULL;
+	}
 	BScreen(this->Window()).GetMode(&fDisplayMode);
-	s = fVideoConsumer->Connect((color_space) fDisplayMode.space, x, y);
+	s = fVideoConsumer->Connect((color_space) fDisplayMode.space, gPrefs.VideoSizeX, gPrefs.VideoSizeY, fVideoFrame.Width() + 1.0, fVideoFrame.Height() + 1.0);
 
 	if (PALMWorkAround)
-		SetDiscreteParameterValue(kFormatParameter, 4); //PAL-M
+		SetDiscreteParameterValue(kVideoFormatParameter, 4); //PAL-M
 
-	if (s < B_OK) {
-		// sometimes, too big a size might be the cause. Try one size smaller...
-		int	maxX = 0, maxY = 0;
-		for (int r = 0; r < fTVResolutions; r++)
-			if (fTVx[r] >= maxX && fTVy[r] >= maxY && (fTVx[r] < x && fTVy[r] <= y || fTVx[r] <= x && fTVy[r] < y)) {
-				maxX = fTVx[r];
-				maxY = fTVy[r];
-			}
-		if (maxX > 0 && maxY > 0) {
-			fVideoConsumer->InitColorSpaceSupport();
-			gPrefs.VideoSizeX = maxX;
-			gPrefs.VideoSizeY = maxY;
-			printf("Retrying to smaller size %dx%d because %s\n", maxX, maxY, strerror(s));
-			s = Connect();
-		}
-	}
 	return s;
 }
 
@@ -519,6 +530,8 @@ stampView::Connect()
 bool
 stampView::TryLockConnection()
 {
+	if (fSuspend)
+		return false;
 	if (atomic_add(&fConnectionLock, 1) > 0) {
 		atomic_add(&fConnectionLock, -1); // no one can be waiting. Two threads scheme.
 		return false;
@@ -547,6 +560,8 @@ stampView::UnlockConnection()
 bool
 stampView::TryLockConnection()
 {
+	if (fSuspend)
+		return false;
 	status_t r;
 	while ((r = acquire_sem_etc(fConnectionLockSem, 1, B_RELATIVE_TIMEOUT, 0)) == B_INTERRUPTED)
 			;
@@ -569,41 +584,87 @@ stampView::UnlockConnection()
 #endif
 
 void
-stampView::SetVisible(bool visible)
+stampView::Suspend(bigtime_t timeout)
 {
-	if (fAllOK)
-		fVideoConsumer->SetVisible(visible);
-	if (fWindow && fWindow->IsFullScreen())
-		ScreenChanged();
+	fSuspendTimeout = timeout;
+	fSuspend = true;
+	LockConnection();
+	if (fCurrentOverlay) {
+		fCurrentOverlay = NULL;
+		ClearViewOverlay();
+		Sync();
+	}
+	fVideoConsumer->Disconnect();
+	UnlockConnection();
 }
 
 void
-stampView::ScreenChanged()
+stampView::Resume()
 {
-	display_mode		dm;
-	BScreen(this->Window()).GetMode(&dm);
-	rgb_color	backcolor;
-	bool	overlay = fVideoConsumer->GetOverlayColor(&backcolor);
-	if (overlay ? memcmp(&fDisplayMode, &dm, sizeof(display_mode)) : dm.space != fDisplayMode.space)
+	if (fSuspend) {
+		fSuspend = false;
 		ResizeVideo(gPrefs.VideoSizeX, gPrefs.VideoSizeY);
+	}
+	fSuspendTimeout = LONGLONG_MAX;
+}
+
+void
+stampView::FrameResized(float, float)
+{
+	if (!fAllOK || IsFullScreen())
+		return;
+	bool	setFrame = false;
+	BRect bounds = Bounds();
+	int32	W = bounds.IntegerWidth() + 1;
+	int32	H = bounds.IntegerHeight() + 1;
+	if (gPrefs.VideoSizeIsWindowSize) {
+		if (W > fTVmaxX || H > fTVmaxY) {
+			if (fWindow)
+				fWindow->ResizeTo(fTVmaxX - 1, fTVmaxY - 1);
+			else
+				ResizeTo(fTVmaxX - 1, fTVmaxY - 1);
+			setFrame = true;
+		} else if (W != gPrefs.VideoSizeX || H != gPrefs.VideoSizeY) {
+			if (fVideoConsumer->OverlayActive()) {
+				SetHighColor(0, 0, 0);
+				FillRect(bounds);
+				Sync();
+				ResizeVideo(W, H);
+				Draw(bounds);
+			} else
+				ResizeVideo(W, H);
+		}
+	} else {
+		bool	restrictionsOK = fVideoConsumer->CheckOverlayRestrictions(gPrefs.VideoSizeX, gPrefs.VideoSizeY, W, H);
+		bool	situationChanged = restrictionsOK ? fVideoConsumer->OverlayWouldNotScale() : fVideoConsumer->OverlayActive();
+		if (situationChanged)
+			ResizeVideo(gPrefs.VideoSizeX, gPrefs.VideoSizeY);
+		else
+			setFrame = true;
+	}
+	if (setFrame) {
+		fVideoFrame = Bounds();
+		fVolumeDisplay->SetFrame(fVideoFrame);
+		fChannelDisplay->SetFrame(fVideoFrame);
+		fMuteDisplay->SetFrame(fVideoFrame);
+	}
 }
 
 int32
-stampView::GetCurrentPreset()
+stampView::GetCurrentPreset(ParameterWebCache& pwc)
 {
-	int32	channel = GetChannel();
-	if (channel >= 0) {
-		for (int p = 0; p < kMaxPresets; p++)
-			if (gPrefs.presets[p].channel == channel)
-				return p;
-	}
+	Preset	current;
+	current.SetToCurrent(pwc);
+	for (int p = 0; p < kMaxPresets; p++)
+		if (gPrefs.presets[p] == current)
+			return p;
 	return -1;
 }
 
 int32
-stampView::GetNextPreset(int direction)
+stampView::GetNextPreset(int direction, ParameterWebCache& pwc)
 {
-	int32	current = GetCurrentPreset();
+	int32	current = GetCurrentPreset(pwc);
 	int32	p = current;
 	int d = direction > 0 ? +1 : -1;
 	int c = direction * d;	// always > 0
@@ -615,9 +676,54 @@ stampView::GetNextPreset(int direction)
 				p += kMaxPresets;
 			if (loop-- < 0)
 				return p; // avoid looping for ever!
-		} while (gPrefs.presets[p].channel < 0);
+		} while (!gPrefs.presets[p].IsValid());
 	}
 	return p;
+}
+
+void
+stampView::SetPreset(Preset& preset, bool delay)
+{
+	Preset	p;
+	if (preset.SwitchTo(fParameterWebCache, &p)) {
+		if (p != preset) {
+			p = preset;	// avoid aliasing!
+			ChangedPreset(p, delay);
+		} else if (fChannelDisplay)
+			fChannelDisplay->Changed();
+	}
+}
+
+void
+stampView::SetChannel(int32 channel, bool delay)
+{
+	int32 currentChannel = SetDiscreteParameterValue(kChannelParameter, channel);
+	if (channel != currentChannel) {
+		Preset	newPreset;
+		newPreset.SetToCurrent(fParameterWebCache);
+		ChangedPreset(newPreset, delay);
+	} else
+		if (fChannelDisplay)
+			fChannelDisplay->Changed();
+}
+
+void
+stampView::ChangedPreset(Preset& newPreset, bool delay)
+{
+	Preset	pendingCurrent;
+	if (fChannelDisplay) {
+		if (delay)
+			pendingCurrent = fChannelDisplay->SetPendingPreset(&newPreset);
+		else
+			pendingCurrent = fChannelDisplay->SetPendingPreset(NULL);
+	}
+	if (newPreset == fBounceCurrentPreset)
+		fBounceLastPreset = pendingCurrent;
+	else
+		fBounceLastPreset = fBounceCurrentPreset;
+	if (!delay)
+		fBounceCurrentPreset = newPreset;
+	UpdateWindowTitle(newPreset);
 }
 
 void
@@ -626,35 +732,116 @@ stampView::UpdateWindowTitle(const char * new_title = NULL)
 	if (fWindow) {
 		if (new_title)
 			fWindowTitle = new_title;
-		bool	forced_title = (*fWindowTitle.String() != 0);
-		if (forced_title)
+		if (fWindowTitle.Length() > 0)
 			fWindow->SetTitle(fWindowTitle.String());
-		if (!forced_title || fChannelDisplay) {
+		else {
 			BString title;
-			int32	channel = GetChannel();
-			int p;
-			for (p = 0; p < kMaxPresets; p++) {
-				if (gPrefs.presets[p].channel == channel) {
-					title << gPrefs.presets[p].name;
-					break;
-				}
-			}
-			if (p >= kMaxPresets) {
+			int32	p = GetCurrentPreset(fParameterWebCache);
+			if (p >= 0)
+				title << gPrefs.presets[p].name;
+			else {
 				BDiscreteParameter	*tuner = fParameterWebCache.GetDiscreteParameter(kChannelParameter);
 				if (tuner)
-					title << tuner->ItemNameAt(channel);
+					title << tuner->ItemNameAt(GetChannel());
 				else
 					title << "???";
 			}
 			if (fChannelDisplay)
 				fChannelDisplay->Set(title.String());
-			if (!forced_title) {
-				BString	windowTitle = "stampTV - ";
-				windowTitle << title;
-				fWindow->SetTitle(windowTitle.String());
-			}
+			BString	windowTitle = "stampTV - ";
+			windowTitle << title;
+			fWindow->SetTitle(windowTitle.String());
 		}
 	}
+}
+
+void
+stampView::UpdateWindowTitle(Preset& preset)
+{
+	if (fWindow && fChannelDisplay) {
+		preset.FindName(fParameterWebCache);
+		fChannelDisplay->Set(preset.name.String());
+		BString	windowTitle = "stampTV - ";
+		windowTitle << preset.name;
+		fWindow->SetTitle(windowTitle.String());
+	}
+}
+
+void
+stampView::OpenURL(const char * url)
+{
+	char*	argv[2];
+	argv[0] = (char*) url;
+	argv[1] = 0;
+	be_roster->Launch("text/html", 1, argv);
+}
+
+void
+stampView::WriteBugReport()
+{
+	#define scriptPath "/tmp/stampTVBugReportTmpScriptFile"
+	const char * scriptText = "#!/bin/sh\nVERSION=`version \"";
+	const char * scriptText2 = "\"`
+/boot/apps/BeMail mailto:berenger@francenet.fr -subject \"Bug report for stampTV $VERSION built "
+__DATE__ " at " __TIME__ "\" -body \"Thanks for taking the time to report how stampTV worked for you!
+
+Please edit the following text to reflect your experience when trying stampTV:
+
+1 - Problem description:
+<Describe here the problem you wish to report. Give as many details as possible. Specify if:
+• It crashed
+• It produced grabage inside the window
+• It produced gargage all over the screen
+• It first worked, but stopped working after you did something specific (or not)
+• Some commands don't work (precise which)...>
+
+2 - Launch stampTV $VERSION from a terminal, and then quit it (if it hasn't crashed!), then cut & paste here \
+the debug output printed in that terminal.
+<Paste here what stampTV $VERSION prints in the terminal>
+
+3 - Tuner card:
+<Give the full name of your TV tuner card>
+
+4 - Video card:
+<Give the full name of your graphic card>
+
+
+--------------------------------------------------------------------------
+Please do not edit the text below, unless you want to keep private some information it contains:
+
+Version app_server:
+`/bin/version /system/servers/app_server`
+
+Version libbe.so:	
+`/bin/version /system/lib/libbe.so`
+
+Version bt848 driver:
+`/bin/version /boot/beos/system/add-ons/kernel/drivers/bin/bt848`
+
+/dev/video:
+`/bin/ls /dev/video`
+
+/dev/graphics:
+`/bin/ls /dev/graphics`
+
+System drivers:
+`/bin/ls -lt /boot/beos/system/add-ons/kernel/drivers/bin/`
+
+Custom drivers:
+`/bin/ls -lt /boot/home/config/add-ons/kernel/drivers/bin/`
+\" &
+rm $0
+";
+	app_info	ainfo;
+	be_app->GetAppInfo(&ainfo);
+	BPath		path(&ainfo.ref);
+	{
+		BFile script(scriptPath, B_WRITE_ONLY | B_CREATE_FILE | B_ERASE_FILE);
+		script.Write(scriptText, strlen(scriptText));
+		script.Write(path.Path(), strlen(path.Path()));
+		script.Write(scriptText2, strlen(scriptText2));
+	}
+	system("sh " scriptPath " &");
 }
 
 long
@@ -828,7 +1015,7 @@ stampView::InitiateDrag(BPoint point)
 	msg.AddInt32("be:actions", B_COPY_TARGET);
 	msg.AddString("be:types", B_FILE_MIME_TYPE);
 	BString str("stampTV frame");
-	int	p = GetCurrentPreset();
+	int	p = GetCurrentPreset(fParameterWebCache);
 	if (p >= 0) {
 		str = gPrefs.presets[p].name;
 		str += " frame";

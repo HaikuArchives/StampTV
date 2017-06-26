@@ -26,7 +26,6 @@ class DrawerPluginType : public VideoPluginType
 		virtual uint32		Version();
 		virtual const char*	Name();
 		virtual const char*	Author();
-		virtual const char*	AboutString();
 		virtual int32		GetVerticesProperties(const vertice_properties ** ap);
 		virtual VideoPluginEngine * InstanciateVideoPluginEngine();
 };

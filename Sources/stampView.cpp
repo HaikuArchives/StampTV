@@ -33,21 +33,24 @@
 #include <ParameterWeb.h>
 #include <MediaRoster.h>
 #include <WindowScreen.h>
+#include <Bitmap.h>
 
 stampView::stampView(BRect frame) :
-	BView(frame, "Video View", B_FOLLOW_ALL | B_PULSE_NEEDED, B_WILL_DRAW),
+	BView(frame, "Video View", B_FOLLOW_ALL | B_PULSE_NEEDED, B_WILL_DRAW | B_FRAME_EVENTS),
 	fTVResolutions(0), fTVx(NULL), fTVy(NULL),
 	fVideoConsumer(NULL),
 	fAllOK(false),
+	fSuspend(false),
+	fSuspendTimeout(LONGLONG_MAX),
 	fWindow(NULL),
 	fVideoPreferences(NULL),
 	fWhilePopup(false),
 	fRoster(NULL),
-	fLastChannelValue(-1),
 	fVolumeDisplay(NULL),
 	fChannelDisplay(NULL),
 	fMuteDisplay(NULL),
-	fConnectionLock(0)
+	fConnectionLock(0),
+	fCurrentOverlay(NULL)
 {
 	fClickPoint.x = -100.;
 	fLastFirstClick = 0;
@@ -84,11 +87,11 @@ stampView::AttachedToWindow()
 	if (fWindow) {
 		fWindow->AddShortcut('H', B_COMMAND_KEY, new BMessage(SHOW_NOTICE), this);
 		fWindow->AddShortcut('P', B_COMMAND_KEY, new BMessage(VIDEO_PREFERENCES), this);
-		fWindow->AddShortcut('M', B_COMMAND_KEY, new BMessage(MUTE_AUDIO), this);
+		fWindow->AddShortcut('M', B_COMMAND_KEY, new BMessage(MUTE_AUDIO_SWITCH), this);
 	} else
 		SetResizingMode(B_FOLLOW_NONE);
 	AddChild(fVolumeDisplay = new volumeDisplay(fVideoFrame));
-	AddChild(fChannelDisplay = new channelDisplay(fVideoFrame));
+	AddChild(fChannelDisplay = new channelDisplay(fVideoFrame, &fBounceCurrentPreset));
 	AddChild(fMuteDisplay = new muteDisplay(fVideoFrame));
 	UpdateMute();
 }
@@ -126,7 +129,7 @@ stampView::MessageReceived(BMessage *message)
 			else if (modif & (B_SHIFT_KEY | B_CAPS_LOCK))
 				SetChannel(GetChannel() + total);
 			else
-				SetChannel(gPrefs.presets[GetNextPreset(total)].channel);
+				SetPreset(GetNextPreset(total, fParameterWebCache));
 			break;
 		}
 		case SET_PREFERRED_MODE: {
@@ -139,11 +142,12 @@ stampView::MessageReceived(BMessage *message)
 				gPrefs.FullScreenY = i;
 			if (IsFullScreen())
 				fWindow->SwitchFullScreen(true);
+			break;
 		}
 		case SET_CHANNEL: {
 			int32 channel;
 			if (message->FindInt32("channel", &channel) == B_OK)
-				SetChannel(channel);
+				SetChannel(channel, false);
 			break;
 		}
 		case UPDATE_WINDOW_TITLE: {
@@ -185,30 +189,29 @@ stampView::MessageReceived(BMessage *message)
 		}
 		case SWITCH_TO_PRESET: {
 			int32 p;
-			if (message->FindInt32("preset", &p) == B_OK && gPrefs.presets[p].channel >= 0)
-				SetChannel(gPrefs.presets[p].channel);
+			if (message->FindInt32("preset", &p) == B_OK)
+				SetPreset(p, false);
 			break;
 		}
 		case CREATE_PRESET: {
-			BString	name;
 			int32	p;
-			int32	current = GetChannel();
+			Preset	preset;
+			preset.SetToCurrent(fParameterWebCache);
 			if (message->FindInt32("preset", &p) != B_OK || p < 0 || p >= kMaxPresets)
-				for (p = 0; p < kMaxPresets && gPrefs.presets[p].channel != current; p++)
+				for (p = 0; p < kMaxPresets && gPrefs.presets[p] != preset; p++)
 					;
 			if (p >= kMaxPresets && (message->FindInt32("preset", &p) != B_OK || p < 0 || p >= kMaxPresets))
-				for (p = 0; p < kMaxPresets && gPrefs.presets[p].channel >= 0; p++)
+				for (p = 0; p < kMaxPresets && gPrefs.presets[p].IsValid(); p++)
 					;
 			if (p < kMaxPresets) {
-				if (message->FindString("name", &name) != B_OK) {
+				if (message->FindString("name", &preset.name) != B_OK) {
 					new NewPresetWindow(new BMessenger(this), Window()->Frame(), p);
 				} else {
+					gPrefs.presets[p] = preset;
 					for (int k = 0; k < kMaxPresets; k++)
-						if (gPrefs.presets[k].channel == current)
-							gPrefs.presets[k].channel = -1;
-					gPrefs.presets[p].channel = current;
-					gPrefs.presets[p].name = name;
-					UpdateWindowTitle();
+						if (k != p && gPrefs.presets[k] == preset)
+							gPrefs.presets[k].Unset();
+					UpdateWindowTitle(preset);
 				}
 			} else
 				(new BAlert(B_EMPTY_STRING, "There is no more free preset!", "OK", NULL, NULL,
@@ -216,23 +219,28 @@ stampView::MessageReceived(BMessage *message)
 			break;
 		}
 		case REMOVE_PRESET: {
-			int32 channel = GetChannel();
-			for (int p = 0; p < kMaxPresets; p++)
-				if (gPrefs.presets[p].channel == channel)
-					gPrefs.presets[p].channel = -1;
+			Preset	preset;
+			preset.SetToCurrent(fParameterWebCache);
+			for (int k = 0; k < kMaxPresets; k++)
+				if (gPrefs.presets[k] == preset)
+					gPrefs.presets[k].Unset(false);
 			UpdateWindowTitle();
 			break;
 		}
 		case LAST_CHANNEL: {
-			if (fLastChannelValue >= 0)
-				SetChannel(fLastChannelValue);
+			SetPreset(fBounceLastPreset, false);
 			break;
 		}
 		case IDEAL_RESIZE:
 			if (fWindow) {
 				int32	ideal;
-				if (message->FindInt32("ideal", &ideal) == B_OK)
-					ResizeVideo(fTVx[ideal], fTVy[ideal]);
+				if (message->FindInt32("ideal", &ideal) == B_OK) {
+					bool	windowOnly = message->HasBool("window");
+					if (!IsFullScreen() && (gPrefs.VideoSizeIsWindowSize || windowOnly))
+						Window()->ResizeTo(fTVx[ideal] - 1, fTVy[ideal] - 1);
+					if (!windowOnly)
+						ResizeVideo(fTVx[ideal], fTVy[ideal]);
+				}
 			}
 			break;
 		case TAB_LESS:
@@ -243,16 +251,29 @@ stampView::MessageReceived(BMessage *message)
 		case STAY_ON_TOP:
 			gPrefs.StayOnTop = !gPrefs.StayOnTop;
 			if (fWindow)
-				Window()->SetFeel(gPrefs.StayOnTop ? B_FLOATING_ALL_WINDOW_FEEL : B_NORMAL_WINDOW_FEEL);
+				fWindow->SetFeel(gPrefs.StayOnTop ? B_FLOATING_ALL_WINDOW_FEEL : B_NORMAL_WINDOW_FEEL);
 			break;			
 		case STAY_ON_SCREEN:
 			gPrefs.StayOnScreen = !gPrefs.StayOnScreen;
 			if (fWindow && gPrefs.StayOnScreen)
 				fWindow->CheckWindowPosition();
 			break;
+		case VIDEO_SIZE_IS_WINDOW_SIZE:
+			gPrefs.VideoSizeIsWindowSize = !gPrefs.VideoSizeIsWindowSize;
+			if (IsFullScreen())
+				ResizeVideo(gPrefs.VideoSizeX, gPrefs.VideoSizeY);
+			else if (fWindow)
+				fWindow->SetMaxSizes(fTVmaxX, fTVmaxY);
+			FrameResized();
+			break;
 		case FULLSCREEN:
 			if (fWindow)
 				fWindow->SwitchFullScreen();
+			break;
+		case USE_ALL_WORKSPACES:
+			gPrefs.AllWorkspaces = !gPrefs.AllWorkspaces;
+			if (fWindow)
+				fWindow->SetWorkspaces(gPrefs.AllWorkspaces ? B_ALL_WORKSPACES : 1 << current_workspace());
 			break;
 		case DISABLE_SCREEN_SAVER:
 			gPrefs.DisableScreenSaver = !gPrefs.DisableScreenSaver;
@@ -273,13 +294,18 @@ stampView::MessageReceived(BMessage *message)
 			}
 			break;
 		}
-		case GOTO_WEBSITE: {
-			char*	argv[2];
-			argv[0] = "http://www.bebits.com/app/907";
-			argv[1] = 0;
-			be_roster->Launch("text/html", 1, argv);
+		case GOTO_WEBSITE:
+			OpenURL("http://www.bebits.com/app/907");
 			break;
-		}
+		case FIND_PLUGINS:
+			OpenURL("http://www.bebits.com/search?search=stamptv+plugin");
+			break;
+		case RATE_STAMPTV:
+			OpenURL("http://www.bebits.com/appvote/907");
+			break;
+		case BUG_REPORT:
+			WriteBugReport();
+			break;
 		case POPUP_END:
 			fWhilePopup = false;
 			break;
@@ -308,15 +334,23 @@ stampView::MessageReceived(BMessage *message)
 			break;
 		}
 		case PRESET_UP: {
-			SetChannel(gPrefs.presets[GetNextPreset(+1)].channel);
+			SetPreset(GetNextPreset(+1, fParameterWebCache));
 			break;
 		}
 		case PRESET_DOWN: {
-			SetChannel(gPrefs.presets[GetNextPreset(-1)].channel);
+			SetPreset(GetNextPreset(-1, fParameterWebCache));
 			break;
 		}
-		case MUTE_AUDIO: {
-			UpdateMute(true);
+		case MUTE_AUDIO_ON: {
+			UpdateMute(eMuteOn);
+			break;
+		}
+		case MUTE_AUDIO_OFF: {
+			UpdateMute(eMuteOff);
+			break;
+		}
+		case MUTE_AUDIO_SWITCH: {
+			UpdateMute(eSwitchMute);
 			break;
 		}
 		default:
@@ -335,14 +369,42 @@ stampView::Draw(BRect updateRect)
 	if (r.Intersects(updateRect))
 		FillRegion(&r);
 	rgb_color	backcolor;
-	if (fVideoConsumer->GetOverlayColor(&backcolor)) {
-		SetHighColor(backcolor);
+	if (fCurrentOverlay != NULL) {
+		SetHighColor(fOverlayKeyColor);
 		FillRect(fVideoFrame);
+		memcpy(&backcolor, &fOverlayKeyColor, sizeof(backcolor));
 	} else
 		memset(&backcolor, 0, sizeof(backcolor));
 	fVolumeDisplay->SetBackColor(backcolor);
 	fChannelDisplay->SetBackColor(backcolor);
 	fMuteDisplay->SetBackColor(backcolor);
+}
+
+void
+stampView::DrawFrame(BBitmap * frame, bool overlay)
+{
+	// Is called while the window isn't locked!!!
+	// If you can't lock the window fast enough, you'll have to skip frames
+	// anyway, so a timeout makes sense on its own.
+	// More important, you'll deadlock if you don't lock with timeout,
+	// because when the view tries to disconnect, it needs this looper to
+	// do some work: if the looper then requires to lock the view when the view
+	// requires the looper to react, you are dead...
+	if ((!overlay || fCurrentOverlay != frame) && LockLooperWithTimeout(50000) == B_OK) {
+		if (overlay) {
+			fCurrentOverlay = frame;
+			SetViewOverlay(frame, frame->Bounds(), fVideoFrame, &fOverlayKeyColor,
+				B_FOLLOW_ALL, B_OVERLAY_FILTER_HORIZONTAL | B_OVERLAY_FILTER_VERTICAL);
+			Draw(fVideoFrame);
+		} else {
+			if (fCurrentOverlay != NULL) {
+				fCurrentOverlay = NULL;
+				ClearViewOverlay();
+			}
+			DrawBitmap(frame, fVideoFrame);
+		}
+		UnlockLooper();
+	}
 }
 
 void
@@ -355,15 +417,8 @@ stampView::KeyDown(const char *bytes, int32 numBytes)
 		BMessage* msg = Window()->CurrentMessage();
 		if (msg) {
 			int key = c - 'A' + 12;
-			if (key >= 12 && key < 26 + 12 && key < kMaxPresets) {
-				int32 channel = gPrefs.presets[key].channel;
-				if (channel >= 0)
-					SetChannel(channel);
-				else if (c == 'F' && !IsFullScreen()) {
-					(new BAlert(B_EMPTY_STRING, "Please use the TAB key to toggle the full screen mode!", "OK", NULL, NULL,
-						B_WIDTH_AS_USUAL, B_OFFSET_SPACING, B_WARNING_ALERT))->Go(NULL);
-				}
-			}
+			if (key >= 12 && key < 26 + 12 && key < kMaxPresets)
+				SetPreset(key, false);
 		}
 	}
 	else
@@ -396,7 +451,7 @@ stampView::KeyDown(const char *bytes, int32 numBytes)
 				break;
 			case '-':
 			case '+': {
-				SetChannel(gPrefs.presets[GetNextPreset(c == '+' ? +1 : -1)].channel);
+				SetPreset(GetNextPreset(c == '+' ? +1 : -1, fParameterWebCache));
 				break;
 			}
 			case B_FUNCTION_KEY: {
@@ -404,11 +459,8 @@ stampView::KeyDown(const char *bytes, int32 numBytes)
 				int32	key;
 				if (msg && msg->FindInt32("key", &key) == B_OK) {
 					key -= B_F1_KEY;
-					if (key >= 0 && key < 12) {
-						int32 c = gPrefs.presets[key].channel;
-						if (c >= 0)
-							SetChannel(c);
-					}
+					if (key >= 0 && key < 12)
+						SetPreset(key, false);
 				}
 				break;
 			}
@@ -417,8 +469,7 @@ stampView::KeyDown(const char *bytes, int32 numBytes)
 				Window()->PostMessage(CREATE_PRESET, this);
 				break;
 			case B_BACKSPACE: {
-				if (fLastChannelValue >= 0)
-					SetChannel(fLastChannelValue);
+				SetPreset(fBounceLastPreset, false);
 				break;
 			}
 			case B_DELETE:
@@ -464,15 +515,17 @@ stampView::MouseMoved(BPoint point, uint32, const BMessage *dragged_msg)
 			uint32	buttons;
 			GetMouse(&point, &buttons);
 			point = point - fClickPoint;
-			if (gPrefs.StayOnScreen) {
-				fClickPoint += point;
+			if (gPrefs.ShouldStayOnScreen()) {
 				BRect frame = Window()->Frame();
-				frame.InsetBy(-4., -4.);
-				BRect scrframe = BScreen(Window()).Frame();			
-				BRect limit(scrframe.left - frame.left, scrframe.top - frame.top,
-							scrframe.right - frame.right, scrframe.bottom - frame.bottom);
-				point.ConstrainTo(limit);
-				fClickPoint -= point;
+				BRect scrframe = ScreenSize();
+				if (frame.Width() + 8. < scrframe.Width() && frame.Height() + 8. < scrframe.Height()) {
+					fClickPoint += point;
+					frame.InsetBy(-4., -4.);
+					BRect limit(scrframe.left - frame.left, scrframe.top - frame.top,
+								scrframe.right - frame.right, scrframe.bottom - frame.bottom);
+					point.ConstrainTo(limit);
+					fClickPoint -= point;
+				}
 			}
 			if (point.x != 0 || point.y != 0)
 				Window()->MoveBy(point.x, point.y);
@@ -566,14 +619,16 @@ stampView::MouseDown(BPoint point)
 		subMenu->AddSeparatorItem();
 
 		bool	presetExists = false;
+		Preset	currentPreset;
+		currentPreset.SetToCurrent(fParameterWebCache);
 		for (int p = 0; p < kMaxPresets; p++) {
-			if (gPrefs.presets[p].channel >= 0) {
+			if (gPrefs.presets[p].IsValid()) {
 				BMessage * m = new BMessage(SWITCH_TO_PRESET);
 				m->AddInt32("preset", p);
 				item = new PresetMenuItem(gPrefs.presets[p].name.String(), p, m);
 				item->SetTarget(this);
 				subMenu->AddItem(item);
-				if (current == gPrefs.presets[p].channel) {
+				if (currentPreset == gPrefs.presets[p]) {
 					presetExists = true;
 					item->SetMarked(true);
 				}
@@ -591,7 +646,7 @@ stampView::MouseDown(BPoint point)
 		subMenu->SetTargetForItems(this);
 		menu->AddItem(subMenu);
 
-		if (fLastChannelValue >= 0)
+		if (fBounceLastPreset.IsValid())
 			menu->AddItem(new PresetMenuItem("Back to the Last Channel", "Backspace", new BMessage(LAST_CHANNEL)));
 
 		menu->AddSeparatorItem();
@@ -603,6 +658,10 @@ stampView::MouseDown(BPoint point)
 			if (fTVResolutions > 0) {
 				subMenu = new BMenu("Video Size");
 				subMenu->SetFont(be_plain_font);
+				message = new BMessage(VIDEO_SIZE_IS_WINDOW_SIZE);
+				subMenu->AddItem(item = new BMenuItem("Locked (Scale)", message));
+				item->SetMarked(!gPrefs.VideoSizeIsWindowSize);
+				subMenu->AddSeparatorItem();
 				char	buf[64];
 				for (int k = 0; k < fTVResolutions; k++) {
 					message = new BMessage(IDEAL_RESIZE);
@@ -610,11 +669,27 @@ stampView::MouseDown(BPoint point)
 					sprintf(buf, "%dx%d", fTVx[k], fTVy[k]);
 					subMenu->AddItem(item = new BMenuItem(buf, message));
 					item->SetMarked(fTVx[k] == gPrefs.VideoSizeX && fTVy[k] == gPrefs.VideoSizeY);
-					item->SetTarget(this);
 				}
+				subMenu->SetTargetForItems(this);
 				menu->AddItem(subMenu);
 			}
 	
+			if (!gPrefs.VideoSizeIsWindowSize && !IsFullScreen()) {
+				subMenu = new BMenu("Window Size");
+				subMenu->SetFont(be_plain_font);
+				char	buf[64];
+				for (int k = 0; k < fTVResolutions; k++) {
+					message = new BMessage(IDEAL_RESIZE);
+					message->AddBool("window", true);
+					message->AddInt32("ideal", k);
+					sprintf(buf, "%dx%d", fTVx[k], fTVy[k]);
+					subMenu->AddItem(item = new BMenuItem(buf, message));
+					item->SetMarked(fTVx[k] == gPrefs.WindowWidth && fTVy[k] == gPrefs.WindowHeight);
+				}
+				subMenu->SetTargetForItems(this);
+				menu->AddItem(subMenu);
+			}
+
 			subMenu = BuildModesSubmenu();
 			menu->AddItem(subMenu);
 		}
@@ -626,11 +701,11 @@ stampView::MouseDown(BPoint point)
 			BContinuousParameter * saturationParameter = NULL;
 			for (int32 i = 0; i < web->CountParameters(); i++) {
 				BParameter *parameter = web->ParameterAt(i);
-				if (strcmp(parameter->Kind(), kBrightnessParameter) == 0) {
+				if (strcmp(parameter->Kind(), kBrightnessParameterKind) == 0) {
 					brightnessParameter = dynamic_cast<BContinuousParameter *> (parameter);
-				} else if (strcmp(parameter->Kind(), kContrastParameter) == 0)
+				} else if (strcmp(parameter->Kind(), kContrastParameterKind) == 0)
 					contrastParameter = dynamic_cast<BContinuousParameter *> (parameter);
-				else if (strcmp(parameter->Kind(), kSaturationParameter) == 0)
+				else if (strcmp(parameter->Kind(), kSaturationParameterKind) == 0)
 					saturationParameter = dynamic_cast<BContinuousParameter *> (parameter);
 			}
 			if (brightnessParameter || contrastParameter || saturationParameter) {
@@ -686,7 +761,7 @@ stampView::MouseDown(BPoint point)
 											 && (size <= sizeof(int32))) {
 										muted = current_value == 1;	// cf ParameterWeb.h: 0 == thru, 1 == mute
 									}
-									message = new BMessage(MUTE_AUDIO);
+									message = new BMessage(MUTE_AUDIO_SWITCH);
 									subMenu->AddItem(item = new BMenuItem("Mute", message, 'M'));
 									item->SetMarked(muted);
 									item->SetTarget(this);
@@ -719,7 +794,7 @@ stampView::MouseDown(BPoint point)
 			menu->AddSeparatorItem();
 		}
 		
-		options = new BMenu("Options");
+		options = new BMenu("Preferences");
 		options->SetFont(be_plain_font);
 		if (fWindow) {
 			message = new BMessage(TAB_LESS);
@@ -736,6 +811,13 @@ stampView::MouseDown(BPoint point)
 	
 			message = new BMessage(FULLSCREEN);
 			options->AddItem(item = new PresetMenuItem("Full Screen", "Tab", message));
+			item->SetMarked(IsFullScreen());
+			
+			if (!IsFullScreen()) {
+				message = new BMessage(USE_ALL_WORKSPACES);
+				options->AddItem(item = new BMenuItem("Occupy All Workspaces", message));
+				item->SetMarked(gPrefs.AllWorkspaces);
+			}
 		}
 		message = new BMessage(DISABLE_SCREEN_SAVER);
 		options->AddItem(item = new BMenuItem("Disable Screen Saver", message));
@@ -743,13 +825,27 @@ stampView::MouseDown(BPoint point)
 
 		options->SetTargetForItems(this);
 		menu->AddItem(options);
-		menu->AddSeparatorItem();
+
+		options = new BMenu("User Services");
+		options->SetFont(be_plain_font);
 
 		message = new BMessage(SHOW_NOTICE);
-		menu->AddItem(item = new BMenuItem("Open stampTV's Notice", message, fWindow ? 'H' : 0));
+		options->AddItem(item = new BMenuItem("Read stampTV's Notice", message, fWindow ? 'H' : 0));
 
 		message = new BMessage(GOTO_WEBSITE);
-		menu->AddItem(item = new BMenuItem("Visit stampTV's Web Site at BeBits", message));
+		options->AddItem(item = new BMenuItem("Visit stampTV's Web Site at BeBits", message));
+		
+		message = new BMessage(FIND_PLUGINS);
+		options->AddItem(item = new BMenuItem("Search for plugins in BeBits", message));
+
+		message = new BMessage(RATE_STAMPTV);
+		options->AddItem(item = new BMenuItem("Rate stampTV at BeBits", message));
+
+		message = new BMessage(BUG_REPORT);
+		options->AddItem(item = new BMenuItem("Write a Bug Report", message));
+
+		options->SetTargetForItems(this);
+		menu->AddItem(options);
 
 		menu->AddSeparatorItem();
 		menu->SetTargetForItems(this);
@@ -777,10 +873,12 @@ stampView::BuildModesSubmenu() {
 	
 	display_mode *list;
 	uint32 count;
-	BScreen scr(Window());
 	display_mode current_mode;
-	scr.GetMode(&current_mode);
-	scr.GetModeList(&list, &count);
+	{
+		BScreen scr(Window());
+		scr.GetMode(&current_mode);
+		scr.GetModeList(&list, &count);
+	}
 	
 	uint16	h = 0, v = 0;
 	BMenu	*submenu = NULL;
@@ -823,6 +921,14 @@ stampView::IsFullScreen() const
 	return false;
 }
 
+BRect
+stampView::ScreenSize()
+{
+	if (fWindow)
+		return fWindow->ScreenSize();
+	return BScreen(Window()).Frame();
+}
+
 void
 stampView::Pulse()
 {
@@ -833,4 +939,6 @@ stampView::Pulse()
 		ConvertToScreen(&where);
 		set_mouse_position((int32) where.x, (int32) where.y);
 	}
+	if (fSuspend && system_time() > fSuspendTimeout)
+		Resume();
 }

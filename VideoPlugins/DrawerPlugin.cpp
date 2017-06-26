@@ -59,11 +59,6 @@ const char* DrawerPluginType::Author()
 	return "Geb";
 }
 
-const char* DrawerPluginType::AboutString()
-{
-	return "Drawer by Geb";
-}
-
 static const vertice_properties support[] =
 {
 	{	ANY_COLOR_SPACE,

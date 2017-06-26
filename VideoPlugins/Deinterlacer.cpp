@@ -56,11 +56,6 @@ const char* DeinterlacerPluginType::Author()
 	return "Geb";
 }
 
-const char* DeinterlacerPluginType::AboutString()
-{
-	return "Deinterlacer by Geb";
-}
-
 static const vertice_properties support[] =
 {
 	{	ANY_COLOR_SPACE,

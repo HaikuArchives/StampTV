@@ -11,14 +11,7 @@
     <font FACE="Humnst777 BT, Arial, Helvetica">
     <h1><font color="#1822CD"><font size="+4">Plugins Development Documentation</font></font></h1>
     &copy;2001, <a href="mailto:berenger@francenet.fr">Georges-Edouard Berenger</a>, berenger@francenet.fr <br>
-    Hamburg, July 3rd, 2001.
-    
-    <font color="#ED181E"><h2>WARNING!</h2>
-	<h3>The plugin APIs are in the works! They will certainly change in the next release!!!
-	<br>Attempts to freeze those APIs will only come later.
-	<br>This release is done to get feedback and hopefully get plugin developers interested.
-	<br>Feedback is more than welcomed!
-	</h3></font>
+    Hamburg, October 7th, 2001.
     
     <h3><font color="#1822CD">What is this document?</font></h3>
 	The Plugins API have been developed with two concurrent goals in mind:
@@ -30,7 +23,7 @@
 		For best results, you should use both the comments in the headers and this documentation.</li>
 	</ul>
 
-    <h3><font color="#1822CD">Organisation</font></h3>
+    <h3><font color="#1822CD">Organization</font></h3>
 	
 	Four classes are defined and documented separately:
 	<ul>
@@ -60,14 +53,14 @@
 		<br>Plugins developers don't make objects of this class, but use the one that is given to them.
 		<br>Host developers shouldn't derive objects of this type directly: they should use the PluginsHandler class which derives from it.
 		Host developers who will prefer not to use the PluginsHandler class will make it harder for them to adapt to the next versions of the video plugins.
-		They will most probably end up reproducing most of the functionnalities provided by this class. If you were to modify this file, you
-		should get in touch with me to tell me why: you probably ran into a bug or need some functionnality which might make sense for
+		They will most probably end up reproducing most of the functionalities provided by this class. If you were to modify this file, you
+		should get in touch with me to tell me why: you probably ran into a bug or need some functionality which might make sense for
 		everyone!
 		</li>
 
 		<li><b><font color="#207020">PluginsHandler</font></b>
 		(derived from VideoPluginsHost, defined &amp; documented in <a href="../PluginsHandler.h">PluginsHandler.h</a>)<br>
-		This class provides host developers with important services to use &amp; organise VideoPluginType and VideoPluginEngine objects,
+		This class provides host developers with important services to use &amp; organize VideoPluginType and VideoPluginEngine objects,
 		as well as store &amp; restore plugins configurations and settings.
 		<br>Plugins developers won't touch this class and won't even include the header file, though this class is the one which
 		will almost exclusively make use of the VideoPluginType and VideoPluginEngine objects they create.
@@ -131,7 +124,7 @@ the test.<p>
 
 in_cspace is the color space of the bitmap to be filtered. There is no restriction on this format as long as you know how to handle it.
 out_cspace is the color space of the result bitmap. There is no restriction on this format as long as you know how to handle it as well! It may be different
-than the format of the bitmap fitered. Therefore, you can very well make a converter plugin which will convert B_RGB32 bitmaps into B_RGB16 ones,
+than the format of the bitmap filtered. Therefore, you can very well make a converter plugin which will convert B_RGB32 bitmaps into B_RGB16 ones,
 and vice versa.
 <p>You may also choose to accept any color space for a vertice using ANY_COLOR_SPACE, with the following restrictions:
 <table width="80%"><tr><td align=center>
@@ -159,7 +152,7 @@ as they wish, regardless of the other vertices.
 <br>The plugin takes two different bitmaps, and the output bitmap is an overlay.
 <br>Set this flag if your plugin knows how to write efficiently in an overlay bitmap. In most cases, you will want to set
 VAPI_PROCESS_TO_DISTINCT as well so that your plugin will work also when no overlay is available.
-<br>The plugin "Overlayer" is a exeption to this last rule, because if writing in an overlay is not possible, then it will prefer to avoid
+<br>The plugin "Overlayer" is a exception to this last rule, because if writing in an overlay is not possible, then it will prefer to avoid
 doing anything at all! This is not a typical plugin.</li>
 <li><b><font color="#207020">VAPI_PROCESS_OVERLAY_IN_PLACE</font></b>:
 <br>The plugin works on a single bitmap which is an overlay.
@@ -174,25 +167,25 @@ and to the outgoing bitmaps.
 <li>If both VAPI_PROCESS_TO_DISTINCT and VAPI_PROCESS_TO_OVERLAY are cleared, then frame_in &amp; frame_out will always be equal.
 <li>If both VAPI_PROCESS_IN_PLACE and VAPI_PROCESS_OVERLAY_IN_PLACE are cleared, then frame_in &amp; frame_out will always point to distinct bitmaps.
 </ul>
-<p>The bitmaps on which processing is done are handled entirely by the PluginsHandler class. It is the responsability of this class to always provide
-bitmap(s) which respect the properties of the vertice used. Here is how the effective mode is choosen:
+<p>The bitmaps on which processing is done are handled entirely by the PluginsHandler class. It is the responsibility of this class to always provide
+bitmap(s) which respect the properties of the vertice used. Here is how the effective mode is chosen:
 <p>If the plugin needs to use BView methods to draw in the bitmap (VAPI_BVIEW_DRAWING), then it will receive a bitmap with a view attached. Otherwise...
 <br>If the plugin accepts to process overlays in place (VAPI_PROCESS_OVERLAY_IN_PLACE),
 and the previous plugin (if any) accepts to write in an overlay, and if all the plugins after this
 plugin accept to work on an overlay in place, then the plugin will receive an overlay, and the output bitmap will also be that overlay. Otherwise...
 <br>If the plugin accepts to write in an overlay (VAPI_PROCESS_TO_OVERLAY), and if the plugins after it can work on the overlay in place,
 then it will get a regular bitmap as input, and will be given an overlay as output. Of course, the video card has to support overlays! Otherwise...
-<br>If the plugin accepts to modify manualy a single bitmap (VAPI_PROCESS_IN_PLACE), then it will get a single bitmap for input and output. Otherwise...
+<br>If the plugin accepts to modify manually a single bitmap (VAPI_PROCESS_IN_PLACE), then it will get a single bitmap for input and output. Otherwise...
 <br>If the plugin accepts to work on different "normal" bitmaps (VAPI_PROCESS_TO_DISTINCT), then it will get two distinct bitmaps.
 <p>If none of the situations above arise, that means that the path selected wasn't valid. This obviously shouldn't ever happen!
 <br>This might happen nevertheless either because a plugin has inconsistent flags,
-or because the algorithm breaks at some level... Use debug outputs to find out what is going on! Very carefull choice of the flags is essential.
+or because the algorithm breaks at some level... Use debug outputs to find out what is going on! Very careful choice of the flags is essential.
 The example plugins show how to use those flags properly in different situations.
 <p>You can get the system to break if for instance your plugin requires to write and/or process an overlay: if no overlay is available, then
 the system won't be able to find any solution! Therefore, plugins should always support either VAPI_PROCESS_TO_DISTINCT or VAPI_PROCESS_IN_PLACE.
 
 <p>As a general rule, you will probably never need to use VAPI_PROCESS_OVERLAY_IN_PLACE. Modifying an overlay is not a good idea because you will
-create ugly visible flicker effects. Remember that an overlay is essentialy a way to clip a section of video memory over a part of your screen where
+create ugly visible flicker effects. Remember that an overlay is essentially a way to clip a section of video memory over a part of your screen where
 a specific color is used. Users will be able to see the modifications you are doing to this memory in real time.
 
 <p>Also, your plugin may want to use the BView APIs to draw. For that, use the VAPI_BVIEW_DRAWING flag which will automatically set the VAPI_PROCESS_IN_PLACE
@@ -207,7 +200,7 @@ for it is not supported at least by some video cards.
 		<li>VideoPlugin.cpp</li>
 		<li>TemplateList.h</li>
 	</ul>
-	They will link their plugins against the host application and the necessary system librairies (libbe.so, etc.).
+	They will link their plugins against the host application and the necessary system libraries (libbe.so, etc.).
 	<p>Host application developers will need to get the latest version of the following files:
 	<ul>	<li>VideoPlugin.h</li>
 		<li>VideoPlugin.cpp</li>

@@ -26,10 +26,8 @@
 
 #include <Menu.h>
 #include <MenuItem.h>
-#include <String.h>
 #include <ParameterWeb.h>
 #include <stdio.h>
-#include <Screen.h>
 #include <Window.h>
 
 class ConfigWindow : public BWindow {
@@ -111,18 +109,18 @@ status_t stampPluginsHandler::GetPresetCount(int32 & count)
 status_t stampPluginsHandler::GetPreset(int32 & slot, BString & name, int32 & channel)
 {
 	status_t	r = B_ERROR;
-	channel = GetDiscreteParameterValue(kChannelParameter);
-	for (slot = 0; slot < kMaxPresets && gPrefs.presets[slot].channel != channel; slot++)
-		;
-	if (slot < kMaxPresets) {
+	slot = fStamp->GetCurrentPreset(fParameterWebCache);
+	if (slot >= 0) {
 		name = gPrefs.presets[slot].name;
+		channel = gPrefs.presets[slot].channel;
 		r = B_OK;
 	} else {
+		channel = GetDiscreteParameterValue(kChannelParameter);
 		BDiscreteParameter	* tuner = fParameterWebCache.GetDiscreteParameter(kChannelParameter);
 		if (tuner)
-			name << tuner->ItemNameAt(channel);
+			name = tuner->ItemNameAt(channel);
 		else
-			name << "???";
+			name = "???";
 	}
 	return r;
 }
@@ -130,7 +128,7 @@ status_t stampPluginsHandler::GetPreset(int32 & slot, BString & name, int32 & ch
 status_t stampPluginsHandler::GetNthPreset(int32 slot, BString & name, int32 & channel)
 {
 	status_t	r = B_ERROR;
-	if (slot >= 0 && slot < kMaxPresets && gPrefs.presets[slot].channel >= 0) {
+	if (slot >= 0 && slot < kMaxPresets && gPrefs.presets[slot].IsValid()) {
 		name = gPrefs.presets[slot].name;
 		channel = gPrefs.presets[slot].channel;
 		r = B_OK;
@@ -144,19 +142,17 @@ status_t stampPluginsHandler::SwitchToPreset(BString & name)
 	int slot;
 	for (slot = 0; slot < kMaxPresets && name != gPrefs.presets[slot].name; slot++)
 		;
-	if (slot < kMaxPresets) {
-		SetDiscreteParameterValue(kChannelParameter, gPrefs.presets[slot].channel);
+	if (slot < kMaxPresets && gPrefs.presets[slot].SwitchTo(fParameterWebCache))
 		r = B_OK;
-	}
 	return r;
 }
 
 status_t stampPluginsHandler::SwitchToPreset(int32 slot)
 {
 	status_t	r = B_ERROR;
-	if (slot >= 0 && slot < kMaxPresets && gPrefs.presets[slot].channel >= 0) {
-		SetDiscreteParameterValue(kChannelParameter, gPrefs.presets[slot].channel);
-		r = B_OK;
+	if (slot >= 0 && slot < kMaxPresets && gPrefs.presets[slot].IsValid()) {
+		if (gPrefs.presets[slot].SwitchTo(fParameterWebCache))
+			r = B_OK;
 	}
 	return r;
 }
@@ -165,26 +161,9 @@ status_t stampPluginsHandler::SwitchToNext(int how_many, bool preset, int32 & in
 {
 	status_t	r = B_ERROR;
 	if (preset) {
-		int32 channel = GetDiscreteParameterValue(kChannelParameter);
-		int p;
-		for (p = 0; p < kMaxPresets && channel != gPrefs.presets[p].channel; p++)
-			;
-		int d = how_many > 0 ? +1 : -1;
-		int c = how_many * d;	// always > 0
-		while (c-- > 0) {
-			int loop = kMaxPresets;
-			do {
-				p = (p + d) % kMaxPresets;
-				if (p < 0)
-					p += kMaxPresets;
-				if (loop-- < 0)
-					return B_ERROR; // no preset!
-			} while (gPrefs.presets[p].channel < 0);
-		}
-		if (p > 0) {
-			SetDiscreteParameterValue(kChannelParameter, gPrefs.presets[p].channel);
+		int32	p = fStamp->GetNextPreset(how_many, fParameterWebCache);
+		if (gPrefs.presets[p].SwitchTo(fParameterWebCache))
 			r = B_OK;
-		}
 	} else {
 		index = GetDiscreteParameterValue(kChannelParameter) + how_many;
 		SetDiscreteParameterValue(kChannelParameter, index);
@@ -224,6 +203,12 @@ BMenu * stampPluginsHandler::PluginsMenu()
 			msg = new BMessage('RmEg');
 			msg->AddInt32("index", e);
 			item = new BMenuItem("Remove", msg);
+			item->SetTarget(this);
+			sub->AddItem(item);
+			
+			msg = new BMessage('AbEn');
+			msg->AddInt32("index", e);
+			item = new BMenuItem("About...", msg);
 			item->SetTarget(this);
 			sub->AddItem(item);
 			
@@ -284,7 +269,7 @@ status_t stampPluginsHandler::OpenConfigWindow(VideoPluginEngine * engine)
 			if (frame.IsValid()) {
 				BRect	stampRect = fStamp->Window()->Frame();
 				BRect	last = engine->ConfigWindowFrame();
-				BRect	screen = BScreen().Frame();
+				BRect	screen = fStamp->ScreenSize();
 				float	width = last.Width();
 				float	height = last.Height();
 				BPoint	where = last.LeftTop();
@@ -354,6 +339,13 @@ status_t stampPluginsHandler::OpenConfigWindow(VideoPluginEngine * engine)
 	return B_OK;
 }
 
+status_t stampPluginsHandler::SetMuteAudio(bool mute)
+{
+	BMessage	command(mute ? stampView::MUTE_AUDIO_ON : stampView::MUTE_AUDIO_OFF);
+	fStamp->Looper()->PostMessage(&command, fStamp);
+	return B_OK;
+}
+
 void stampPluginsHandler::MessageReceived(BMessage *message)
 {
 	switch (message->what) {
@@ -395,6 +387,15 @@ void stampPluginsHandler::MessageReceived(BMessage *message)
 				fStamp->UnlockConnection();
 				if (open_config)
 					OpenConfigWindow(fEngineList.ItemAt(fEngineList.CountItems() - 1));
+			}
+			break;
+		}
+		case 'AbEn':
+		{
+			int32	e;
+			if (message->FindInt32("index", &e) == B_OK && e < fEngineList.CountItems()) {
+				VideoPluginEngine * engine = fEngineList.ItemAt(e);
+				engine->Plugin()->About();
 			}
 			break;
 		}

@@ -61,10 +61,8 @@ VideoConsumer::VideoConsumer( const char * name, stampView * sView, bool quit_ap
 	mBuffers(NULL),
 	mBufferCount(kBufferCount),
 	mOverlayBitmap(NULL),
+	mOverlayWouldNotScale(false),
 	mLastFrame(0),
-	mUsingOverlay(false),
-	mVisible(true),
-	mCurrentOverlay(NULL),
 	mFrameRequested(false)
 {
 	FUNCTION(("VideoConsumer::VideoConsumer\n"));
@@ -202,34 +200,7 @@ VideoConsumer::ProcessBuffer(BBuffer * buffer)
 			mLastFrame = index;
 			if (mStamp->TryLockConnection()) {
 				currentBitmap = fPluginsHandler->Filter(currentBitmap, mFrameCount, mFrameDropped);
-				// If you can't lock the window fast enough, you'll have to skip frames
-				// anyway, so a timeout makes sense on its own.
-				// More important, you'll deadlock if you don't lock with timeout,
-				// because when the view tries to disconnect, it needs this looper to
-				// do some work: if the looper then requires to lock the view when the view
-				// requires the looper to react, you are dead...
-				// Don't fear dropped frames: if you do, then put a counter here and try!
-				// Frames are (normaly) dropped only when resizing the window...
-				if ((!mUsingOverlay || mCurrentOverlay != currentBitmap) && mVisible &&
-					mStamp->LockLooperWithTimeout(int32(1000000. / mIn.format.u.raw_video.field_rate)) == B_OK)
-				{
-					if (mUsingOverlay && currentBitmap == mOverlayBitmap) {
-						mCurrentOverlay = currentBitmap;
-						BRect	dest = currentBitmap->Bounds();
-						dest.OffsetTo(mWhere);
-						mStamp->SetViewOverlay(currentBitmap, currentBitmap->Bounds(), dest,
-							&mOverlayKeyColor, B_FOLLOW_NONE, 
-							B_OVERLAY_FILTER_HORIZONTAL | B_OVERLAY_FILTER_VERTICAL);
-						mStamp->Invalidate();
-					} else {
-						if (mCurrentOverlay) {
-							mCurrentOverlay = NULL;
-							mStamp->ClearViewOverlay();
-						}
-						mStamp->DrawBitmap(currentBitmap, mWhere);
-					}
-					mStamp->UnlockLooper();
-				}
+				mStamp->DrawFrame(currentBitmap, currentBitmap == mOverlayBitmap);
 				mStamp->UnlockConnection();
 			}
 			mFrameDropped = false;
@@ -263,10 +234,8 @@ VideoConsumer::ProcessBuffer(BBuffer * buffer)
 			PROGRESS(("VideoConsumer::ProcessBuffer - DROPPED FRAME\n"));
 			mFrameDropped = true;
 		}
-		buffer->Recycle();
 	}
-	else
-		buffer->Recycle();
+	buffer->Recycle();
 }
 
 
@@ -307,7 +276,6 @@ VideoConsumer::CreateBuffers(media_format & format, color_space overlay_space,
 		PROGRESS(("Overlay created!\n"));
 		mOverlayBitmap = bm;
 	}
-	mUsingOverlay = createOverlay;
 	mBufferCount = overlayBuffer ? 1 : kBufferCount;
 
 	// create a buffer group
@@ -357,7 +325,7 @@ VideoConsumer::CreateBuffers(media_format & format, color_space overlay_space,
 	format.u.raw_video.display.bytes_per_row = mBitmap[0]->BytesPerRow();
 	format.deny_flags = B_MEDIA_MAUI_UNDEFINED_FLAGS;
 	format.require_flags = B_MEDIA_MAUI_UNDEFINED_FLAGS;
-	if (mUsingOverlay && overlayBuffer)
+	if (createOverlay && overlayBuffer)
 		format.require_flags |= B_MEDIA_LINEAR_UPDATES;
 	if (mBufferCount > 1) {
 		format.require_flags |= B_MEDIA_MULTIPLE_BUFFERS;
@@ -375,7 +343,6 @@ VideoConsumer::DeleteBuffers()
 	if (mBuffers)
 	{
 		FUNCTION(("VideoConsumer::DeleteBuffers\n"));
-		SetVisible(false);
 		
 		for (int j = 0; j < mBufferCount; j++)
 			if (mBitmap[j] != NULL){
@@ -411,7 +378,6 @@ VideoConsumer::DeleteBuffers()
 		delete mOverlayBitmap;
 		mOverlayBitmap = NULL;
 	}
-	mCurrentOverlay = NULL;
 }
 
 //---------------------------------------------------------------
@@ -422,15 +388,20 @@ VideoConsumer::InitColorSpaceSupport()
 #if TRY_OVERLAY
 	DeleteBuffers();	// this can't happen anytime. Some cards accept only one overlay at a time...
 	mOverlaySpaces.MakeEmpty();
+	memset(&mRestrictions, 0, sizeof(mRestrictions));
 
 	BRect	frame(0, 0, 15, 15);
 
 	color_space	possible_overlays[] = { B_RGB32, B_RGB16, B_RGB15, B_YCbCr422, B_YCbCr411, B_YCbCr444, B_YCbCr420 };
-	int tries = sizeof (possible_overlays) / sizeof (color_space);
+	int		tries = sizeof (possible_overlays) / sizeof (color_space);
+	bool	restrictionsFound = false;
 	for (int t = 0; t < tries; t++) {
 		BBitmap * bm = new BBitmap(frame, OVERLAY_BUFFER_BITMAP_FLAGS, possible_overlays[t]);
-		if (bm && bm->InitCheck() == B_OK && bm->IsValid())
+		if (bm && bm->InitCheck() == B_OK && bm->IsValid()) {
 			mOverlaySpaces.AddItem((void*) possible_overlays[t]);
+			if (!restrictionsFound && bm->GetOverlayRestrictions(&mRestrictions) == B_OK)
+				restrictionsFound = true;
+		}
 		delete bm;
 	}
 #endif
@@ -440,6 +411,26 @@ bool
 VideoConsumer::OverlayCompatible(color_space cspace)
 {
 	return mOverlaySpaces.HasItem((void *)cspace);
+}
+
+bool
+VideoConsumer::CheckOverlayRestrictions(int vWidth, int vHeight, float wWidth, float wHeight)
+{
+	return (mOverlaySpaces.CountItems() > 0
+		&& vWidth * mRestrictions.min_width_scale <= wWidth
+		&& vWidth * mRestrictions.max_width_scale >= wWidth
+		&& vHeight * mRestrictions.min_height_scale <= wHeight
+		&& vHeight * mRestrictions.max_height_scale >= wHeight
+		// These are not well implemented by the Voodoo3 driver... What about others?... :-(
+//		&& mRestrictions.source.min_width <= vWidth
+//		&& mRestrictions.source.max_width >= vWidth
+//		&& mRestrictions.source.min_height <= vHeight
+//		&& mRestrictions.source.max_height >= vHeight
+//		&& mRestrictions.destination.min_width <= wWidth
+//		&& mRestrictions.destination.max_width >= wWidth
+//		&& mRestrictions.destination.min_height <= wHeight
+//		&& mRestrictions.destination.max_height >= wHeight
+		);
 }
 
 //---------------------------------------------------------------
@@ -473,7 +464,7 @@ VideoConsumer::SetupVideoNode(media_node & video_node)
 //---------------------------------------------------------------
 
 status_t
-VideoConsumer::Connect(color_space current, int width, int height)
+VideoConsumer::Connect(color_space current, int vWidth, int vHeight, float wWidth, float wHeight)
 {
 	FUNCTION(("VideoConsumer::Connect %d\n", int(current)));
 
@@ -484,28 +475,32 @@ VideoConsumer::Connect(color_space current, int width, int height)
 	in = ANY_COLOR_SPACE;
 	out = ANY_COLOR_SPACE;
 	while (fPluginsHandler->GetNextPath(cookie, in, out, drawInBuffer, firstFlags, allFlags, lastFlags) == B_OK) {
+		bool	overlayPossible = CheckOverlayRestrictions(vWidth, vHeight, wWidth, wHeight);
 		bool	overlayBuffer = supports_each(allFlags, VAPI_PROCESS_OVERLAY_IN_PLACE);
-		bool	overlayOutput = overlayBuffer || supports_one(lastFlags, VAPI_PROCESS_TO_OVERLAY | VAPI_PROCESS_OVERLAY_IN_PLACE);
+		bool	overlayOutput = (overlayBuffer || supports_one(lastFlags, VAPI_PROCESS_TO_OVERLAY | VAPI_PROCESS_OVERLAY_IN_PLACE));
 		bool	normalBuffers = supports_one(firstFlags, VAPI_PROCESS_TO_DISTINCT | VAPI_PROCESS_IN_PLACE);
+		mOverlayWouldNotScale =  mOverlaySpaces.CountItems() > 0 && (overlayBuffer || overlayOutput) && !overlayPossible;
+		if (!overlayPossible)
+			overlayBuffer = overlayOutput = false;
 		if (out == ANY_COLOR_SPACE) {
 			// we can choose freely the color mode
 			if (overlayOutput) {
 				int m = mOverlaySpaces.CountItems();
 				for (int c = 0; c < m; c++) {
 					color_space cs = (color_space) int(mOverlaySpaces.ItemAt(c));
-					if (TryConnect(cs, cs, width, height, drawInBuffer, true, overlayBuffer) == B_OK)
+					if (TryConnect(cs, cs, vWidth, vHeight, drawInBuffer, true, overlayBuffer) == B_OK)
 						goto mode_found;
 				}
 			}
 			if (normalBuffers) {
 				// Overlay connections didn't work out, try without overlay
-				if (TryConnect(current, current, width, height, drawInBuffer) == B_OK)	// first try current color_space: much more efficient to blit!
+				if (TryConnect(current, current, vWidth, vHeight, drawInBuffer) == B_OK)	// first try current color_space: the most efficient to blit!
 					goto mode_found;
 				color_space	spaces[] = { B_RGB32, B_RGB16, B_RGB15 };
 				int m = sizeof (spaces) / sizeof (color_space);
 				for (int t = 0; t < m; t++) {
 					if (spaces[t] != current) {
-						if (TryConnect(spaces[t], spaces[t], width, height, drawInBuffer) == B_OK)
+						if (TryConnect(spaces[t], spaces[t], vWidth, vHeight, drawInBuffer) == B_OK)
 							goto mode_found;
 					}
 				}
@@ -513,9 +508,9 @@ VideoConsumer::Connect(color_space current, int width, int height)
 			goto no_way;	// this path didn't work out. Try the next one...
 		} else {
 			// we can *not* choose freely the color mode
-			if (overlayOutput && TryConnect(in, out, width, height, drawInBuffer, true, overlayBuffer) == B_OK)
+			if (overlayOutput && TryConnect(in, out, vWidth, vHeight, drawInBuffer, true, overlayBuffer) == B_OK)
 				goto mode_found;
-			if (!normalBuffers || TryConnect(in, out, width, height, drawInBuffer) != B_OK)
+			if (!normalBuffers || TryConnect(in, out, vWidth, vHeight, drawInBuffer) != B_OK)
 				goto no_way;
 		}
 mode_found:
@@ -572,7 +567,6 @@ VideoConsumer::Connected(
 {
 	FUNCTION(("VideoConsumer::Connected\n"));
 	
-	mVisible = true;
 	mIn.source = producer;
 	mIn.format = with_format;
 	mIn.node = Node();
@@ -641,7 +635,7 @@ VideoConsumer::AcceptFormat(
 	
 	if (format->u.raw_video.display.format != mBitmap[0]->ColorSpace())
 	{
-		PROGRESS(("Refused format: %d Overlay: %d\n", int(format->u.raw_video.display.format), int(mUsingOverlay)));
+		PROGRESS(("Refused format: %d Overlay: %d\n", int(format->u.raw_video.display.format), int(mOverlayBitmap != 0)));
 		return B_MEDIA_BAD_FORMAT;
 	}
 		
@@ -757,28 +751,6 @@ VideoConsumer::HandleEvent(
 			break;
 	}			
 	LOOP(("VideoConsumer::HandleEvent - DONE\n"));
-}
-
-void
-VideoConsumer::SetVisible(bool visible)
-{
-	FUNCTION(("VideoConsumer::SetVisible: %d\n", int(visible)));
-	mVisible = visible;
-	if (mUsingOverlay && !visible && mCurrentOverlay && mStamp->LockLooper()) {
-		mCurrentOverlay = NULL;
-		mStamp->SetHighColor(0, 0, 0);
-		mStamp->FillRect(mStamp->Bounds());
-		mStamp->ClearViewOverlay();
-		mStamp->Sync();
-		mStamp->UnlockLooper();
-	}
-}
-
-bool
-VideoConsumer::GetOverlayColor(rgb_color * overlayColor)
-{
-	*overlayColor = mOverlayKeyColor;
-	return mUsingOverlay;
 }
 
 BBitmap *
